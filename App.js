@@ -10,8 +10,8 @@ import EventSource from 'react-native-sse';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 
-import MangaDexWebView from './src/components/MangaDexWebView';
 import DownloadHUD from './src/components/DownloadHUD';
+import TikTokDownloader from './src/components/TikTokDownloader';
 import { dohFetch, DNS_PROVIDERS } from './src/utils/dns';
 import { calculateStorageUsage, formatBytes, exportChapterAsCBZ } from './src/utils/storage';
 
@@ -19,13 +19,12 @@ const DEFAULT_BACKEND_URL = "https://mahirun.hicanh69.workers.dev";
 const { width } = Dimensions.get('window');
 
 export default function App() {
-  // Navigation Tabs: 'webview' | 'direct' | 'library'
-  const [activeTab, setActiveTab] = useState('webview');
+  // Navigation Tabs: 'manga' | 'tiktok' | 'library'
+  const [activeTab, setActiveTab] = useState('manga');
   
   // Custom Settings State
   const [backendUrl, setBackendUrl] = useState(DEFAULT_BACKEND_URL);
   const [selectedDNS, setSelectedDNS] = useState(DNS_PROVIDERS[0]);
-  const [useCloudflareDNS, setUseCloudflareDNS] = useState(true);
   const [settingsModalVisible, setSettingsModalVisible] = useState(false);
 
   // Direct Link Downloader State
@@ -91,7 +90,7 @@ export default function App() {
   // Trigger MangaDex Batch Translation Engine
   const startTranslation = async (targetUrl, customChapTitle = '') => {
     if (!targetUrl.includes('mangadex.org')) {
-      Alert.alert('NEXUS VIP', 'Chỉ hỗ trợ liên kết MangaDex. Vui lòng kiểm tra lại.');
+      Alert.alert('NEXUS VIP', 'Chỉ hỗ trợ liên kết MangaDex (https://mangadex.org/chapter/...).');
       return;
     }
 
@@ -101,7 +100,7 @@ export default function App() {
     setHudComplete(false);
     setHudError(false);
     setHudProgress(0.05);
-    setHudStatusText('Đang khởi tạo Nexus VIP Engine...');
+    setHudStatusText('Đang kết nối Nexus Translator Engine...');
 
     try {
       const formData = new FormData();
@@ -117,8 +116,8 @@ export default function App() {
         throw new Error(`Server status ${response.status}`);
       }
 
-      setHudStatusText('Đang chờ Nexus Server nhận ảnh & dịch thuật AI...');
-      setHudProgress(0.12);
+      setHudStatusText('Đang chờ Nexus Server nhận ảnh & dịch AI...');
+      setHudProgress(0.15);
 
       const source = new EventSource(`${backendUrl}/manga-progress`);
       activeSseRef.current = source;
@@ -136,7 +135,7 @@ export default function App() {
           setHudStatusText(data.current || 'Đang xử lý...');
 
           if (data.total > 0) {
-            const calculatedProgress = 0.12 + (data.done / data.total) * 0.73;
+            const calculatedProgress = 0.15 + (data.done / data.total) * 0.7;
             setHudProgress(calculatedProgress);
           }
 
@@ -161,7 +160,7 @@ export default function App() {
         clearTimeout(timeoutTimer);
         source.close();
         activeSseRef.current = null;
-        setHudStatusText('Gián đoạn kết nối Stream với Server');
+        setHudStatusText('Mất kết nối Stream với Server');
         setHudError(true);
       });
 
@@ -171,18 +170,31 @@ export default function App() {
     }
   };
 
+  // Robust Download & Unzip Handler with Base64 & Magic Bytes Validation
   const downloadAndExtractZip = async (filename, chapTitle) => {
     try {
       setHudStatusText('Đang tải tệp CBZ đóng gói...');
-      setHudProgress(0.88);
+      setHudProgress(0.85);
 
       const zipUri = FileSystem.cacheDirectory + filename;
-      await FileSystem.downloadAsync(`${backendUrl}/download/${filename}`, zipUri);
+      const downloadRes = await FileSystem.downloadAsync(`${backendUrl}/download/${filename}`, zipUri);
+
+      if (downloadRes.status !== 200) {
+        throw new Error(`Server trả về mã lỗi HTTP ${downloadRes.status}`);
+      }
+
+      setHudStatusText('Đang kiểm tra tính hợp lệ của tệp ZIP...');
+      setHudProgress(0.88);
+
+      const zipB64 = await FileSystem.readAsStringAsync(zipUri, { encoding: FileSystem.EncodingType.Base64 });
+
+      if (!zipB64 || zipB64.length < 20 || !zipB64.startsWith('UEsDB')) {
+        throw new Error("Tệp ZIP chưa được tạo xong hoặc link bị lỗi HTML 404/500");
+      }
 
       setHudStatusText('Đang bung nén ảnh vào storage...');
       setHudProgress(0.92);
 
-      const zipB64 = await FileSystem.readAsStringAsync(zipUri, { encoding: FileSystem.EncodingType.Base64 });
       const zip = await JSZip.loadAsync(zipB64, { base64: true });
 
       const now = new Date();
@@ -213,7 +225,7 @@ export default function App() {
 
       loadSavedChapters();
     } catch (e) {
-      setHudStatusText('Lỗi giải nén: Dữ liệu bị hỏng');
+      setHudStatusText(`Lỗi giải nén: ${e.message || "Tệp ZIP hỏng"}`);
       setHudError(true);
     }
   };
@@ -334,22 +346,22 @@ export default function App() {
           </TouchableOpacity>
         </View>
 
-        {/* Global Navigation Tabs */}
+        {/* Navigation Tabs */}
         <View style={styles.navTabs}>
           <TouchableOpacity
-            style={[styles.tabBtn, activeTab === 'webview' && styles.tabBtnActive]}
-            onPress={() => setActiveTab('webview')}
+            style={[styles.tabBtn, activeTab === 'manga' && styles.tabBtnActive]}
+            onPress={() => setActiveTab('manga')}
           >
-            <Feather name="globe" size={14} color={activeTab === 'webview' ? '#00e5ff' : '#64748b'} />
-            <Text style={[styles.tabText, activeTab === 'webview' && styles.tabTextActive]}>MangaDex</Text>
+            <Feather name="zap" size={14} color={activeTab === 'manga' ? '#00e5ff' : '#64748b'} />
+            <Text style={[styles.tabText, activeTab === 'manga' && styles.tabTextActive]}>Dịch Manga</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.tabBtn, activeTab === 'direct' && styles.tabBtnActive]}
-            onPress={() => setActiveTab('direct')}
+            style={[styles.tabBtn, activeTab === 'tiktok' && styles.tabBtnActive]}
+            onPress={() => setActiveTab('tiktok')}
           >
-            <Feather name="link" size={14} color={activeTab === 'direct' ? '#00e5ff' : '#64748b'} />
-            <Text style={[styles.tabText, activeTab === 'direct' && styles.tabTextActive]}>Nhập Link</Text>
+            <Feather name="video" size={14} color={activeTab === 'tiktok' ? '#ec4899' : '#64748b'} />
+            <Text style={[styles.tabText, activeTab === 'tiktok' && styles.tabTextTikTokActive]}>TikTok DL</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -364,24 +376,13 @@ export default function App() {
         </View>
       </View>
 
-      {/* Tab 1: Integrated MangaDex WebView */}
-      {activeTab === 'webview' && (
-        <MangaDexWebView
-          useCloudflareDNS={useCloudflareDNS}
-          onToggleDNS={() => setUseCloudflareDNS(!useCloudflareDNS)}
-          onTriggerDownload={(chapterUrl, chapterTitle) => {
-            startTranslation(chapterUrl, chapterTitle);
-          }}
-        />
-      )}
-
-      {/* Tab 2: Direct Link Input Batch Downloader */}
-      {activeTab === 'direct' && (
+      {/* Tab 1: Manga Batch Translator */}
+      {activeTab === 'manga' && (
         <View style={styles.tabContentContainer}>
           <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ width: '100%' }}>
             <View style={styles.glassPanel}>
               <View style={styles.panelHeaderRow}>
-                <Text style={styles.panelTitle}>BATCH TRANSLATOR VIP</Text>
+                <Text style={styles.panelTitle}>BATCH MANGA TRANSLATOR VIP</Text>
                 <View style={styles.dnsBadge}>
                   <Feather name="shield" size={11} color="#10b981" style={{ marginRight: 4 }} />
                   <Text style={styles.dnsBadgeText}>{selectedDNS.id}</Text>
@@ -419,14 +420,19 @@ export default function App() {
             </View>
           </KeyboardAvoidingView>
 
-          {/* Quick Info Box */}
+          {/* Info Box */}
           <View style={styles.infoBox}>
-            <Feather name="zap" size={16} color="#00e5ff" style={{ marginRight: 8 }} />
+            <Feather name="info" size={16} color="#00e5ff" style={{ marginRight: 8 }} />
             <Text style={styles.infoText}>
-              Sử dụng tab <Text style={{ color: '#00e5ff', fontWeight: 'bold' }}>MangaDex</Text> để xem truyện mượt mà không lo bị chặn mạng. Nhấn nút <Text style={{ color: '#00e5ff', fontWeight: 'bold' }}>⚡ DỊCH CHAPTER NÀY</Text> để dịch tự động!
+              Nhập liên kết chapter MangaDex bất kỳ để dịch tự động bằng Nexus Batch Translation Engine. Dữ liệu sẽ được tự động giải nén và lưu trữ offline.
             </Text>
           </View>
         </View>
+      )}
+
+      {/* Tab 2: TikTok Downloader */}
+      {activeTab === 'tiktok' && (
+        <TikTokDownloader backendUrl={backendUrl} />
       )}
 
       {/* Tab 3: Offline Library & Storage Management */}
@@ -458,7 +464,7 @@ export default function App() {
             <View style={styles.emptyState}>
               <Feather name="inbox" size={48} color="#334155" />
               <Text style={styles.emptyText}>Chưa có chapter nào được lưu</Text>
-              <Text style={styles.emptySub}>Truy cập MangaDex hoặc Dán Link để bắt đầu dịch</Text>
+              <Text style={styles.emptySub}>Nhập Link MangaDex để bắt đầu dịch</Text>
             </View>
           ) : (
             <FlatList
@@ -614,6 +620,9 @@ const styles = StyleSheet.create({
   },
   tabTextActive: {
     color: '#00e5ff',
+  },
+  tabTextTikTokActive: {
+    color: '#ec4899',
   },
   tabContentContainer: {
     flex: 1,

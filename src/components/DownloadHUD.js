@@ -6,7 +6,7 @@ import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
 /**
- * VIP Extension-style Floating Download HUD Component
+ * Enhanced Cyberpunk Glassmorphic Floating Download HUD
  */
 export default function DownloadHUD({
   visible,
@@ -20,7 +20,7 @@ export default function DownloadHUD({
 }) {
   const [minimized, setMinimized] = useState(false);
   const pulseAnim = useRef(new Animated.Value(1)).current;
-  const slideAnim = useRef(new Animated.Value(-120)).current;
+  const slideAnim = useRef(new Animated.Value(-140)).current;
 
   useEffect(() => {
     if (visible) {
@@ -65,7 +65,7 @@ export default function DownloadHUD({
     statusBadge = 'NEXUS ENGINE • GẶP LỖI';
   }
 
-  // Minimized Mode
+  // Minimized Compact Floating Mode
   if (minimized) {
     return (
       <TouchableOpacity
@@ -112,25 +112,25 @@ export default function DownloadHUD({
         {/* Counter Row */}
         <View style={styles.counterRow}>
           <Text style={styles.counterText}>
-            {isComplete ? 'Đã tải & dịch 100%' : 'Tiến độ: '}
+            {isComplete ? 'Đã tải & dịch 100%' : 'Tiến độ dịch: '}
             <Text style={{ color: '#00e5ff', fontWeight: '900' }}>{percentInt}%</Text>
           </Text>
           {chapTitle ? <Text style={styles.chapBadge}>{chapTitle}</Text> : null}
         </View>
 
-        {/* Dual Gradient Progress Bar */}
+        {/* Multi-Color Glossy Gradient Progress Bar */}
         <View style={styles.barBg}>
           <LinearGradient
-            colors={isError ? ['#ef4444', '#b91c1c'] : ['#00e5ff', '#a855f7']}
+            colors={isError ? ['#ef4444', '#b91c1c'] : ['#00e5ff', '#a855f7', '#ec4899']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={[styles.barFill, { width: `${Math.max(5, percentInt)}%` }]}
           />
         </View>
 
-        {/* Detailed Real-time Status Message */}
+        {/* Real-time Status Detail */}
         <Text style={styles.statusDetailText} numberOfLines={2}>
-          {statusText || 'Đang thiết lập kết nối tới Nexus Batch Translator...'}
+          {statusText || 'Đang kết nối tới Nexus Translator Engine...'}
         </Text>
 
         {/* Action Toolbar */}
@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
     zIndex: 99999,
   },
   hudCard: {
-    backgroundColor: 'rgba(10, 12, 16, 0.94)',
+    backgroundColor: 'rgba(10, 12, 16, 0.95)',
     borderRadius: 16,
     padding: 14,
     borderWidth: 1,
@@ -241,15 +241,17 @@ const styles = StyleSheet.create({
   },
   barBg: {
     width: '100%',
-    height: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 3,
+    height: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 4,
     overflow: 'hidden',
     marginBottom: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 229, 255, 0.15)',
   },
   barFill: {
     height: '100%',
-    borderRadius: 3,
+    borderRadius: 4,
   },
   statusDetailText: {
     color: '#94a3b8',
