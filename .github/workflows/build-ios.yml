@@ -19,35 +19,24 @@ jobs:
           node-version: 20
           cache: 'npm'
 
-      - name: Install dependencies
+      - name: Install npm dependencies
         run: |
           npm install --legacy-peer-deps
 
-      - name: Expo Prebuild (Generate iOS Xcode Project)
+      - name: Expo Prebuild (Generate iOS native code)
         run: |
-          npx expo prebuild --platform ios --no-install
+          npx expo prebuild --platform ios
 
-      - name: Find Xcode Workspace or Project
-        id: find_proj
+      - name: Install CocoaPods
         run: |
-          PROJ=$(find ios -name "*.xcworkspace" -o -name "*.xcodeproj" | head -n 1)
-          echo "proj_path=$PROJ" >> $GITHUB_OUTPUT
-          SCHEME=$(basename "$PROJ" | sed 's/\.[^.]*$//')
-          echo "scheme_name=$SCHEME" >> $GITHUB_OUTPUT
+          cd ios
+          pod install
 
       - name: Build Unsigned iOS Archive & IPA
         run: |
           cd ios
           xcodebuild clean archive \
-            -workspace *.xcworkspace 2>/dev/null || xcodebuild clean archive -project *.xcodeproj \
-            -scheme NexusManga \
-            -configuration Release \
-            -archivePath build/NexusManga.xcarchive \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="" \
-            PROVISIONING_PROFILE="" \
-            CODE_SIGNING_ALLOWED=NO || xcodebuild clean archive \
-            -project *.xcodeproj \
+            -workspace NexusManga.xcworkspace \
             -scheme NexusManga \
             -configuration Release \
             -archivePath build/NexusManga.xcarchive \
@@ -55,9 +44,9 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             PROVISIONING_PROFILE="" \
             CODE_SIGNING_ALLOWED=NO
-          
+
           mkdir -p ../Payload
-          cp -r build/NexusManga.xcarchive/Products/Applications/*.app ../Payload/ || cp -r build/Release-iphoneos/*.app ../Payload/ || true
+          cp -r build/NexusManga.xcarchive/Products/Applications/*.app ../Payload/ || true
           cd ..
           zip -r Nexus-iOS.ipa Payload
 
