@@ -330,11 +330,11 @@ export default function App() {
         }}
       />
 
-      {/* Main App Header */}
+      {/* Main VIP Header Bar */}
       <View style={styles.header}>
         <View style={styles.brandRow}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Feather name="hexagon" size={24} color="#00e5ff" style={{ marginRight: 8 }} />
+            <Feather name="hexagon" size={26} color="#00e5ff" style={{ marginRight: 8 }} />
             <Text style={styles.brandTitle}>NEXUS<Text style={{ color: '#ffffff' }}>_iOS</Text></Text>
             <View style={styles.vipBadge}>
               <Text style={styles.vipText}>VIP PRO</Text>
@@ -346,30 +346,30 @@ export default function App() {
           </TouchableOpacity>
         </View>
 
-        {/* Navigation Tabs */}
+        {/* Segmented Navigation Tabs */}
         <View style={styles.navTabs}>
           <TouchableOpacity
             style={[styles.tabBtn, activeTab === 'manga' && styles.tabBtnActive]}
             onPress={() => setActiveTab('manga')}
           >
-            <Feather name="zap" size={14} color={activeTab === 'manga' ? '#00e5ff' : '#64748b'} />
+            <Feather name="zap" size={15} color={activeTab === 'manga' ? '#00e5ff' : '#64748b'} />
             <Text style={[styles.tabText, activeTab === 'manga' && styles.tabTextActive]}>Dịch Manga</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.tabBtn, activeTab === 'tiktok' && styles.tabBtnActive]}
+            style={[styles.tabBtn, activeTab === 'tiktok' && styles.tabBtnTikTokActive]}
             onPress={() => setActiveTab('tiktok')}
           >
-            <Feather name="video" size={14} color={activeTab === 'tiktok' ? '#ec4899' : '#64748b'} />
-            <Text style={[styles.tabText, activeTab === 'tiktok' && styles.tabTextTikTokActive]}>TikTok DL</Text>
+            <Feather name="video" size={15} color={activeTab === 'tiktok' ? '#ec4899' : '#64748b'} />
+            <Text style={[styles.tabText, activeTab === 'tiktok' && styles.tabTextTikTokTextActive]}>TikTok DL</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.tabBtn, activeTab === 'library' && styles.tabBtnActive]}
+            style={[styles.tabBtn, activeTab === 'library' && styles.tabBtnLibraryActive]}
             onPress={() => setActiveTab('library')}
           >
-            <Feather name="hard-drive" size={14} color={activeTab === 'library' ? '#00e5ff' : '#64748b'} />
-            <Text style={[styles.tabText, activeTab === 'library' && styles.tabTextActive]}>
+            <Feather name="hard-drive" size={15} color={activeTab === 'library' ? '#10b981' : '#64748b'} />
+            <Text style={[styles.tabText, activeTab === 'library' && styles.tabTextLibraryTextActive]}>
               Thư Viện ({savedChapters.length})
             </Text>
           </TouchableOpacity>
@@ -381,6 +381,13 @@ export default function App() {
         <View style={styles.tabContentContainer}>
           <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ width: '100%' }}>
             <View style={styles.glassPanel}>
+              <LinearGradient
+                colors={['#00e5ff', '#a855f7']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.topGradientBar}
+              />
+
               <View style={styles.panelHeaderRow}>
                 <Text style={styles.panelTitle}>BATCH MANGA TRANSLATOR VIP</Text>
                 <View style={styles.dnsBadge}>
@@ -389,16 +396,23 @@ export default function App() {
                 </View>
               </View>
 
-              <TextInput
-                style={styles.input}
-                placeholder="Dán link MangaDex (https://mangadex.org/chapter/...)"
-                placeholderTextColor="#475569"
-                value={urlInput}
-                onChangeText={setUrlInput}
-                editable={!hudVisible}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
+              <View style={styles.inputWrapper}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Dán link MangaDex (https://mangadex.org/chapter/...)"
+                  placeholderTextColor="#475569"
+                  value={urlInput}
+                  onChangeText={setUrlInput}
+                  editable={!hudVisible}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                {urlInput ? (
+                  <TouchableOpacity style={styles.clearInputBtn} onPress={() => setUrlInput('')}>
+                    <Feather name="x-circle" size={16} color="#94a3b8" />
+                  </TouchableOpacity>
+                ) : null}
+              </View>
 
               <TouchableOpacity
                 onPress={() => {
@@ -413,7 +427,7 @@ export default function App() {
                     start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
                   >
                     <Feather name="download-cloud" size={18} color="#000" style={{ marginRight: 8 }} />
-                    <Text style={styles.btnText}>{hudVisible ? 'ĐANG XỬ LÝ HUD...' : 'TẢI & DỊCH CHAPTER'}</Text>
+                    <Text style={styles.btnText}>{hudVisible ? 'ĐANG XỬ LÝ HUD...' : '⚡ KÍCH HOẠT NEXUS BATCH ENGINE'}</Text>
                   </LinearGradient>
                 </Animated.View>
               </TouchableOpacity>
@@ -422,7 +436,7 @@ export default function App() {
 
           {/* Info Box */}
           <View style={styles.infoBox}>
-            <Feather name="info" size={16} color="#00e5ff" style={{ marginRight: 8 }} />
+            <Feather name="zap" size={16} color="#00e5ff" style={{ marginRight: 8 }} />
             <Text style={styles.infoText}>
               Nhập liên kết chapter MangaDex bất kỳ để dịch tự động bằng Nexus Batch Translation Engine. Dữ liệu sẽ được tự động giải nén và lưu trữ offline.
             </Text>
@@ -440,9 +454,16 @@ export default function App() {
         <View style={styles.tabContentContainer}>
           {/* Storage Meter Banner */}
           <View style={styles.storageMeterCard}>
+            <LinearGradient
+              colors={['#10b981', '#059669']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.topGradientBar}
+            />
+
             <View style={styles.storageHeaderRow}>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Feather name="hard-drive" size={18} color="#00e5ff" style={{ marginRight: 8 }} />
+                <Feather name="hard-drive" size={18} color="#10b981" style={{ marginRight: 8 }} />
                 <Text style={styles.storageTitle}>DUNG LƯỢNG LƯU TRỮ</Text>
               </View>
               <Text style={styles.storageValue}>{formatBytes(totalStorageBytes)}</Text>
@@ -564,7 +585,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 10,
+    marginBottom: 12,
     marginTop: 4,
   },
   brandTitle: {
@@ -589,29 +610,41 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   settingsBtn: {
-    padding: 6,
-    borderRadius: 8,
+    padding: 8,
+    borderRadius: 10,
     backgroundColor: 'rgba(0, 229, 255, 0.1)',
   },
   navTabs: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(15, 23, 42, 0.8)',
-    borderRadius: 12,
+    backgroundColor: 'rgba(15, 23, 42, 0.9)',
+    borderRadius: 14,
     padding: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
   },
   tabBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
-    borderRadius: 9,
+    paddingVertical: 9,
+    borderRadius: 11,
     gap: 5,
   },
   tabBtnActive: {
     backgroundColor: 'rgba(0, 229, 255, 0.15)',
     borderWidth: 1,
-    borderColor: 'rgba(0, 229, 255, 0.3)',
+    borderColor: 'rgba(0, 229, 255, 0.4)',
+  },
+  tabBtnTikTokActive: {
+    backgroundColor: 'rgba(236, 72, 153, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(236, 72, 153, 0.4)',
+  },
+  tabBtnLibraryActive: {
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.4)',
   },
   tabText: {
     color: '#64748b',
@@ -621,8 +654,11 @@ const styles = StyleSheet.create({
   tabTextActive: {
     color: '#00e5ff',
   },
-  tabTextTikTokActive: {
+  tabTextTikTokTextActive: {
     color: '#ec4899',
+  },
+  tabTextLibraryTextActive: {
+    color: '#10b981',
   },
   tabContentContainer: {
     flex: 1,
@@ -630,23 +666,37 @@ const styles = StyleSheet.create({
   },
   glassPanel: {
     width: '100%',
-    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    backgroundColor: 'rgba(15, 23, 42, 0.8)',
     padding: 16,
-    borderRadius: 16,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    borderColor: 'rgba(0, 229, 255, 0.3)',
     marginBottom: 16,
+    shadowColor: '#00e5ff',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 8,
+    overflow: 'hidden',
+  },
+  topGradientBar: {
+    height: 3,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
   },
   panelHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
+    marginTop: 4,
   },
   panelTitle: {
     color: '#94a3b8',
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '900',
     letterSpacing: 1,
   },
   dnsBadge: {
@@ -664,16 +714,25 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
   },
+  inputWrapper: {
+    position: 'relative',
+    marginBottom: 14,
+  },
   input: {
     backgroundColor: 'rgba(0,0,0,0.5)',
     color: '#00e5ff',
     padding: 14,
+    paddingRight: 36,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: 'rgba(0, 229, 255, 0.3)',
-    marginBottom: 14,
     fontSize: 13,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+  clearInputBtn: {
+    position: 'absolute',
+    top: 13,
+    right: 12,
   },
   btnGlowWrapper: {
     borderRadius: 12,
@@ -698,7 +757,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'rgba(0, 229, 255, 0.05)',
     padding: 14,
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: 'rgba(0, 229, 255, 0.15)',
   },
@@ -709,26 +768,28 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   storageMeterCard: {
-    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    backgroundColor: 'rgba(15, 23, 42, 0.8)',
     padding: 14,
-    borderRadius: 14,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(0, 229, 255, 0.2)',
+    borderColor: 'rgba(16, 185, 129, 0.3)',
     marginBottom: 16,
+    overflow: 'hidden',
   },
   storageHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginTop: 4,
   },
   storageTitle: {
     color: '#94a3b8',
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '900',
     letterSpacing: 1,
   },
   storageValue: {
-    color: '#00e5ff',
+    color: '#10b981',
     fontSize: 14,
     fontWeight: '900',
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
@@ -776,7 +837,7 @@ const styles = StyleSheet.create({
   },
   chapCard: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(15, 23, 42, 0.4)',
+    backgroundColor: 'rgba(15, 23, 42, 0.6)',
     padding: 12,
     borderRadius: 14,
     marginBottom: 10,
@@ -826,13 +887,13 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.8)',
+    backgroundColor: 'rgba(0,0,0,0.85)',
     justifyContent: 'center',
     padding: 20,
   },
   settingsModalCard: {
     backgroundColor: '#0f172a',
-    borderRadius: 16,
+    borderRadius: 18,
     padding: 20,
     borderWidth: 1,
     borderColor: '#00e5ff',

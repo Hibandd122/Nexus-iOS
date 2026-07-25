@@ -17,7 +17,6 @@ export function extractUrlFromText(text) {
   const match = text.match(/https?:\/\/[^\s\u4e00-\u9fa5]+/i) || text.match(/https?:\/\/[^\s]+/i);
   if (match) {
     let extracted = match[0].trim();
-    // Remove trailing punctuation or appended Chinese text
     extracted = extracted.replace(/[\u4e00-\u9fa5！!，,。?？]+.*$/, '');
     return extracted;
   }
@@ -25,7 +24,7 @@ export function extractUrlFromText(text) {
 }
 
 /**
- * TikTok / Douyin Downloader Component with Auto URL Extraction
+ * Ultra VIP TikTok / Douyin Downloader Component
  */
 export default function TikTokDownloader({ backendUrl }) {
   const [inputText, setInputText] = useState('');
@@ -37,13 +36,13 @@ export default function TikTokDownloader({ backendUrl }) {
   const handleFetchInfo = async () => {
     const targetUrl = extractUrlFromText(inputText);
     if (!targetUrl) {
-      Alert.alert("TikTok DL", "Vui lòng nhập văn bản chứa liên kết TikTok / Douyin.");
+      Alert.alert("TikTok DL VIP", "Vui lòng nhập văn bản chứa liên kết TikTok / Douyin.");
       return;
     }
 
     setLoading(true);
     setPreviewData(null);
-    setDownloadStatus(`Đang phân tích: ${targetUrl.substring(0, 35)}...`);
+    setDownloadStatus(`Đang phân tích liên kết: ${targetUrl.substring(0, 30)}...`);
 
     try {
       const formData = new FormData();
@@ -74,6 +73,12 @@ export default function TikTokDownloader({ backendUrl }) {
     }
   };
 
+  const handleClear = () => {
+    setInputText('');
+    setPreviewData(null);
+    setDownloadStatus('');
+  };
+
   const handleDownloadFile = async (fileUrl, fileType) => {
     if (!fileUrl) {
       Alert.alert("Lỗi", "Không tìm thấy đường dẫn tải về.");
@@ -81,7 +86,7 @@ export default function TikTokDownloader({ backendUrl }) {
     }
 
     setDownloadingMedia(true);
-    setDownloadStatus(`Đang tải ${fileType}...`);
+    setDownloadStatus(`Đang tải tệp ${fileType.toUpperCase()}...`);
 
     try {
       const extension = fileType === 'video' ? 'mp4' : (fileType === 'audio' ? 'mp3' : 'jpg');
@@ -94,7 +99,7 @@ export default function TikTokDownloader({ backendUrl }) {
         throw new Error(`HTTP ${downloadRes.status}`);
       }
 
-      setDownloadStatus('Tải thành công! Đang mở menu chia sẻ...');
+      setDownloadStatus('Tải hoàn tất! Đang mở menu chia sẻ...');
 
       const canShare = await Sharing.isAvailableAsync();
       if (canShare) {
@@ -114,25 +119,42 @@ export default function TikTokDownloader({ backendUrl }) {
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* Input Glass Panel */}
       <View style={styles.glassPanel}>
+        <LinearGradient
+          colors={['#ec4899', '#8b5cf6']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.topGradientBar}
+        />
+
         <View style={styles.panelHeaderRow}>
-          <Text style={styles.panelTitle}>TIKTOK & DOUYIN DOWNLOADER VIP</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Feather name="video" size={16} color="#ec4899" style={{ marginRight: 6 }} />
+            <Text style={styles.panelTitle}>TIKTOK & DOUYIN VIP DOWNLOADER</Text>
+          </View>
           <View style={styles.badge}>
             <Text style={styles.badgeText}>AUTO EXTRACT LINK</Text>
           </View>
         </View>
 
-        <TextInput
-          style={styles.input}
-          placeholder="Dán toàn bộ văn bản chia sẻ Douyin/TikTok (tự động tách link)..."
-          placeholderTextColor="#475569"
-          value={inputText}
-          onChangeText={setInputText}
-          editable={!loading}
-          multiline
-          numberOfLines={3}
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
+        <View style={styles.inputWrapper}>
+          <TextInput
+            style={styles.input}
+            placeholder="Dán toàn bộ văn bản chia sẻ Douyin/TikTok..."
+            placeholderTextColor="#475569"
+            value={inputText}
+            onChangeText={setInputText}
+            editable={!loading}
+            multiline
+            numberOfLines={3}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          {inputText ? (
+            <TouchableOpacity style={styles.clearInputBtn} onPress={handleClear}>
+              <Feather name="x-circle" size={16} color="#94a3b8" />
+            </TouchableOpacity>
+          ) : null}
+        </View>
 
         <TouchableOpacity onPress={handleFetchInfo} disabled={loading || !inputText.trim()}>
           <LinearGradient
@@ -143,9 +165,9 @@ export default function TikTokDownloader({ backendUrl }) {
             {loading ? (
               <ActivityIndicator color="#ffffff" style={{ marginRight: 8 }} />
             ) : (
-              <Feather name="search" size={18} color="#ffffff" style={{ marginRight: 8 }} />
+              <Feather name="zap" size={18} color="#ffffff" style={{ marginRight: 8 }} />
             )}
-            <Text style={styles.btnText}>{loading ? 'ĐANG TÁCH LINK & PHÂN TÍCH...' : 'PHÂN TÍCH & TẢI MEDIA'}</Text>
+            <Text style={styles.btnText}>{loading ? 'ĐANG TÁCH LINK & PHÂN TÍCH...' : '⚡ PHÂN TÍCH & TẢI MEDIA'}</Text>
           </LinearGradient>
         </TouchableOpacity>
 
@@ -157,6 +179,11 @@ export default function TikTokDownloader({ backendUrl }) {
       {/* Preview Card */}
       {previewData && (
         <View style={styles.previewCard}>
+          <LinearGradient
+            colors={['rgba(236, 72, 153, 0.2)', 'transparent']}
+            style={styles.previewGradientHeader}
+          />
+
           <View style={styles.authorRow}>
             {previewData.avatar ? (
               <Image source={{ uri: previewData.avatar }} style={styles.avatar} />
@@ -167,7 +194,11 @@ export default function TikTokDownloader({ backendUrl }) {
             )}
             <View style={styles.authorInfo}>
               <Text style={styles.authorName}>@{previewData.author || 'tiktok_user'}</Text>
-              <Text style={styles.sourcePlatform}>{previewData.source_platform || 'TikTok / Douyin'}</Text>
+              <Text style={styles.sourcePlatform}>{previewData.source_platform || 'TikTok / Douyin VIP'}</Text>
+            </View>
+
+            <View style={styles.hdTag}>
+              <Text style={styles.hdTagText}>FULL HD</Text>
             </View>
           </View>
 
@@ -175,9 +206,8 @@ export default function TikTokDownloader({ backendUrl }) {
             <Text style={styles.descText}>{previewData.desc}</Text>
           ) : null}
 
-          {/* Action Download Buttons */}
+          {/* Download Action Buttons */}
           <View style={styles.actionButtonsCol}>
-            {/* Download Video Button */}
             {previewData.download_url && (
               <TouchableOpacity
                 disabled={downloadingMedia}
@@ -189,13 +219,12 @@ export default function TikTokDownloader({ backendUrl }) {
                   style={styles.actionGradient}
                   start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
                 >
-                  <Feather name="video" size={18} color="#ffffff" style={{ marginRight: 8 }} />
+                  <Feather name="download" size={18} color="#ffffff" style={{ marginRight: 8 }} />
                   <Text style={styles.actionBtnText}>TẢI VIDEO KHÔNG LOGO (MP4)</Text>
                 </LinearGradient>
               </TouchableOpacity>
             )}
 
-            {/* Download Audio Button */}
             {previewData.audio_url && (
               <TouchableOpacity
                 disabled={downloadingMedia}
@@ -208,7 +237,7 @@ export default function TikTokDownloader({ backendUrl }) {
                   start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
                 >
                   <Feather name="music" size={18} color="#ffffff" style={{ marginRight: 8 }} />
-                  <Text style={styles.actionBtnText}>TẢI NHẠC NỀN / MP3</Text>
+                  <Text style={styles.actionBtnText}>TẢI NHẠC NỀN AUDIO (MP3)</Text>
                 </LinearGradient>
               </TouchableOpacity>
             )}
@@ -218,9 +247,9 @@ export default function TikTokDownloader({ backendUrl }) {
 
       {/* Info Card */}
       <View style={styles.infoBox}>
-        <Feather name="zap" size={16} color="#ec4899" style={{ marginRight: 8 }} />
+        <Feather name="shield" size={16} color="#ec4899" style={{ marginRight: 8 }} />
         <Text style={styles.infoText}>
-          Tự động tách liên kết `https://v.douyin.com/...` từ bất kỳ đoạn văn bản chia sẻ Douyin hoặc TikTok nào bạn dán vào!
+          Công nghệ tự động nhận diện & tách liên kết `https://v.douyin.com/...` từ bất kỳ văn bản chia sẻ nào.
         </Text>
       </View>
     </ScrollView>
@@ -233,28 +262,37 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   glassPanel: {
-    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    backgroundColor: 'rgba(15, 23, 42, 0.8)',
     padding: 16,
-    borderRadius: 16,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: 'rgba(236, 72, 153, 0.3)',
+    borderColor: 'rgba(236, 72, 153, 0.35)',
     marginBottom: 16,
     shadowColor: '#ec4899',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
+    overflow: 'hidden',
+  },
+  topGradientBar: {
+    height: 3,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
   },
   panelHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
+    marginTop: 4,
   },
   panelTitle: {
     color: '#94a3b8',
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '900',
     letterSpacing: 1,
   },
   badge: {
@@ -270,22 +308,32 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '800',
   },
+  inputWrapper: {
+    position: 'relative',
+    marginBottom: 14,
+  },
   input: {
     backgroundColor: 'rgba(0,0,0,0.5)',
     color: '#ec4899',
     padding: 14,
+    paddingRight: 36,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: 'rgba(236, 72, 153, 0.3)',
-    marginBottom: 14,
     fontSize: 13,
-    minHeight: 70,
+    minHeight: 75,
     textAlignVertical: 'top',
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
+  clearInputBtn: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    padding: 4,
+  },
   btn: {
     padding: 14,
-    borderRadius: 10,
+    borderRadius: 12,
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'center',
@@ -304,17 +352,25 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
   previewCard: {
-    backgroundColor: 'rgba(15, 23, 42, 0.85)',
+    backgroundColor: 'rgba(15, 23, 42, 0.88)',
     padding: 16,
-    borderRadius: 16,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: 'rgba(236, 72, 153, 0.4)',
     marginBottom: 16,
     shadowColor: '#ec4899',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.35,
+    shadowRadius: 20,
+    elevation: 10,
+    overflow: 'hidden',
+  },
+  previewGradientHeader: {
+    height: 40,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
   },
   authorRow: {
     flexDirection: 'row',
@@ -326,6 +382,8 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 22,
     marginRight: 12,
+    borderWidth: 1,
+    borderColor: '#ec4899',
   },
   avatarFallback: {
     width: 44,
@@ -348,6 +406,19 @@ const styles = StyleSheet.create({
     color: '#94a3b8',
     fontSize: 11,
   },
+  hdTag: {
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#10b981',
+  },
+  hdTagText: {
+    color: '#10b981',
+    fontSize: 10,
+    fontWeight: '900',
+  },
   descText: {
     color: '#cbd5e1',
     fontSize: 13,
@@ -358,14 +429,14 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   downloadActionBtn: {
-    borderRadius: 10,
+    borderRadius: 12,
     overflow: 'hidden',
   },
   actionGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
+    paddingVertical: 13,
     paddingHorizontal: 16,
   },
   actionBtnText: {
@@ -379,7 +450,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'rgba(236, 72, 153, 0.08)',
     padding: 14,
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: 'rgba(236, 72, 153, 0.2)',
     marginBottom: 40,
