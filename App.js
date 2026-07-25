@@ -12,6 +12,7 @@ import { Feather } from '@expo/vector-icons';
 
 import DownloadHUD from './src/components/DownloadHUD';
 import TikTokDownloader from './src/components/TikTokDownloader';
+import MangaPreviewModal from './src/components/MangaPreviewModal';
 import { dohFetch, DNS_PROVIDERS } from './src/utils/dns';
 import { calculateStorageUsage, formatBytes, exportChapterAsCBZ } from './src/utils/storage';
 
@@ -27,6 +28,10 @@ export default function App() {
   const [selectedDNS, setSelectedDNS] = useState(DNS_PROVIDERS[0]);
   const [settingsModalVisible, setSettingsModalVisible] = useState(false);
 
+  // Manga Preview Modal State
+  const [previewModalVisible, setPreviewModalVisible] = useState(false);
+  const [previewChapId, setPreviewChapId] = useState(null);
+
   // Direct Link Downloader State
   const [urlInput, setUrlInput] = useState('');
 
@@ -37,11 +42,11 @@ export default function App() {
   const [hudComplete, setHudComplete] = useState(false);
   const [hudError, setHudError] = useState(false);
   const [hudChapTitle, setHudChapTitle] = useState('');
+  const [lastDownloadedChapId, setLastDownloadedChapId] = useState(null);
 
   // Saved Chapters & Storage State
   const [savedChapters, setSavedChapters] = useState([]);
   const [totalStorageBytes, setTotalStorageBytes] = useState(0);
-  const [isExporting, setIsExporting] = useState(false);
 
   const activeSseRef = useRef(null);
   const glowAnim = useRef(new Animated.Value(0)).current;
@@ -170,7 +175,6 @@ export default function App() {
     }
   };
 
-  // Robust Download & Unzip Handler with Base64 & Magic Bytes Validation
   const downloadAndExtractZip = async (filename, chapTitle) => {
     try {
       setHudStatusText('Đang tải tệp CBZ đóng gói...');
@@ -222,6 +226,7 @@ export default function App() {
       setHudProgress(1.0);
       setHudStatusText('HOÀN TẤT VIP! Chapter đã lưu trữ thành công');
       setHudComplete(true);
+      setLastDownloadedChapId(chapFolderId);
 
       loadSavedChapters();
     } catch (e) {
@@ -241,31 +246,16 @@ export default function App() {
   };
 
   const handleExportCBZ = async (chapId) => {
-    setIsExporting(true);
     try {
       await exportChapterAsCBZ(chapId);
     } catch (e) {
       Alert.alert("Lỗi xuất CBZ", e.message || "Không thể xuất tệp CBZ.");
-    } finally {
-      setIsExporting(false);
     }
   };
 
-  const showChapterDetails = async (chapId) => {
-    try {
-      const dir = getChapDir() + chapId + '/';
-      const files = await FileSystem.readDirectoryAsync(dir);
-      Alert.alert(
-        "Thông tin Chapter",
-        `Tên: ${chapId}\nSố trang ảnh: ${files.length}\nVị trí: ${dir}`,
-        [
-          { text: "Xuất tệp CBZ", onPress: () => handleExportCBZ(chapId) },
-          { text: "Đóng", style: "cancel" }
-        ]
-      );
-    } catch (e) {
-      Alert.alert('Lỗi', 'Không thể xem chi tiết chapter này.');
-    }
+  const openPreviewModal = (chapId) => {
+    setPreviewChapId(chapId);
+    setPreviewModalVisible(true);
   };
 
   const deleteChapter = async (chapId) => {
@@ -326,8 +316,20 @@ export default function App() {
         onCancel={cancelTask}
         onOpenLibrary={() => {
           setHudVisible(false);
-          setActiveTab('library');
+          if (lastDownloadedChapId) {
+            openPreviewModal(lastDownloadedChapId);
+          } else {
+            setActiveTab('library');
+          }
         }}
+      />
+
+      {/* Full Gallery Manga Preview Modal */}
+      <MangaPreviewModal
+        visible={previewModalVisible}
+        chapId={previewChapId}
+        onClose={() => setPreviewModalVisible(false)}
+        onExportCBZ={(chapId) => handleExportCBZ(chapId)}
       />
 
       {/* Main VIP Header Bar */}
@@ -438,7 +440,7 @@ export default function App() {
           <View style={styles.infoBox}>
             <Feather name="zap" size={16} color="#00e5ff" style={{ marginRight: 8 }} />
             <Text style={styles.infoText}>
-              Nhập liên kết chapter MangaDex bất kỳ để dịch tự động bằng Nexus Batch Translation Engine. Dữ liệu sẽ được tự động giải nén và lưu trữ offline.
+              Nhập liên kết chapter MangaDex bất kỳ để dịch tự động bằng Nexus Batch Engine. Tự động giải nén & hỗ trợ xem trước thư viện ảnh (Preview Grid)!
             </Text>
           </View>
         </View>
@@ -496,13 +498,13 @@ export default function App() {
               contentContainerStyle={{ paddingBottom: 40 }}
               renderItem={({ item }) => (
                 <View style={styles.chapCard}>
-                  <TouchableOpacity style={styles.chapBtn} onPress={() => showChapterDetails(item)}>
+                  <TouchableOpacity style={styles.chapBtn} onPress={() => openPreviewModal(item)}>
                     <View style={styles.chapIconWrap}>
-                      <Feather name="folder" size={20} color="#00e5ff" />
+                      <Feather name="grid" size={20} color="#00e5ff" />
                     </View>
                     <View style={styles.chapInfo}>
                       <Text style={styles.chapText} numberOfLines={1}>{item}</Text>
-                      <Text style={styles.chapSub}>MangaDex • Nexus Engine AI</Text>
+                      <Text style={styles.chapSub}>Nhấn để Xem trước ảnh • Preview Grid</Text>
                     </View>
                   </TouchableOpacity>
 
