@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  StyleSheet, Text, View, TouchableOpacity, Animated, Easing, Platform
+  StyleSheet, Text, View, TouchableOpacity, Animated, Easing, Platform, Modal, Dimensions
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
+const { width, height } = Dimensions.get('window');
+
 /**
- * Enhanced Cyberpunk Glassmorphic Floating Download HUD
+ * VIP Full-Screen Hover Overlay Download HUD
  */
 export default function DownloadHUD({
   visible,
@@ -20,16 +22,29 @@ export default function DownloadHUD({
 }) {
   const [minimized, setMinimized] = useState(false);
   const pulseAnim = useRef(new Animated.Value(1)).current;
-  const slideAnim = useRef(new Animated.Value(-140)).current;
+  const hoverAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (visible) {
-      Animated.spring(slideAnim, {
-        toValue: 0,
-        useNativeDriver: true,
-        bounciness: 6,
-      }).start();
+      // Continuous floating hover animation
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(hoverAnim, {
+            toValue: -8,
+            duration: 1500,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+          Animated.timing(hoverAnim, {
+            toValue: 0,
+            duration: 1500,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
 
+      // Pulsing status dot animation
       Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, {
@@ -56,20 +71,20 @@ export default function DownloadHUD({
   const percentInt = Math.round(progress * 100);
 
   let dotColor = '#00e5ff';
-  let statusBadge = 'NEXUS ENGINE • VIP BATCH PROCESSOR';
+  let statusBadge = 'NEXUS VIP • ENGINE ĐANG DỊCH';
   if (isComplete) {
     dotColor = '#10b981';
-    statusBadge = 'NEXUS ENGINE • XỬ LÝ HOÀN TẤT';
+    statusBadge = 'NEXUS VIP • HOÀN TẤT 100%';
   } else if (isError) {
     dotColor = '#ef4444';
-    statusBadge = 'NEXUS ENGINE • GẶP LỖI';
+    statusBadge = 'NEXUS VIP • GẶP LỖI';
   }
 
   // Minimized Compact Floating Mode
   if (minimized) {
     return (
       <TouchableOpacity
-        activeOpacity={0.8}
+        activeOpacity={0.85}
         onPress={() => setMinimized(false)}
         style={styles.minimizedPill}
       >
@@ -85,220 +100,267 @@ export default function DownloadHUD({
     );
   }
 
+  // Full-Screen Hover Modal Overlay
   return (
-    <Animated.View style={[styles.hudContainer, { transform: [{ translateY: slideAnim }] }]}>
-      <View style={styles.hudCard}>
-        {/* Header Row */}
-        <View style={styles.hudHeader}>
-          <View style={styles.hudStatusGroup}>
-            <Animated.View
-              style={[
-                styles.statusDot,
-                { backgroundColor: dotColor, opacity: isComplete || isError ? 1 : pulseAnim },
-              ]}
+    <Modal visible={visible} transparent animationType="fade">
+      <View style={styles.fullScreenOverlay}>
+        <Animated.View style={[styles.hoverCardContainer, { transform: [{ translateY: hoverAnim }] }]}>
+          <View style={styles.vipHudCard}>
+            {/* Top Glow Accent Bar */}
+            <LinearGradient
+              colors={['#00e5ff', '#a855f7', '#ec4899']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.topAccentBar}
             />
-            <Text style={styles.hudTitle}>{statusBadge}</Text>
-          </View>
-          <View style={styles.headerRightActions}>
-            <TouchableOpacity onPress={() => setMinimized(true)} style={styles.iconBtn}>
-              <Feather name="minimize-2" size={16} color="#94a3b8" />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={onCancel} style={styles.iconBtn}>
-              <Feather name="x" size={16} color="#f43f5e" />
-            </TouchableOpacity>
-          </View>
-        </View>
 
-        {/* Counter Row */}
-        <View style={styles.counterRow}>
-          <Text style={styles.counterText}>
-            {isComplete ? 'Đã tải & dịch 100%' : 'Tiến độ dịch: '}
-            <Text style={{ color: '#00e5ff', fontWeight: '900' }}>{percentInt}%</Text>
-          </Text>
-          {chapTitle ? <Text style={styles.chapBadge}>{chapTitle}</Text> : null}
-        </View>
+            {/* Header Row */}
+            <View style={styles.hudHeader}>
+              <View style={styles.hudStatusGroup}>
+                <Animated.View
+                  style={[
+                    styles.statusDot,
+                    { backgroundColor: dotColor, opacity: isComplete || isError ? 1 : pulseAnim },
+                  ]}
+                />
+                <Text style={styles.hudTitle}>{statusBadge}</Text>
+              </View>
 
-        {/* Multi-Color Glossy Gradient Progress Bar */}
-        <View style={styles.barBg}>
-          <LinearGradient
-            colors={isError ? ['#ef4444', '#b91c1c'] : ['#00e5ff', '#a855f7', '#ec4899']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={[styles.barFill, { width: `${Math.max(5, percentInt)}%` }]}
-          />
-        </View>
+              <View style={styles.headerRightActions}>
+                <TouchableOpacity onPress={() => setMinimized(true)} style={styles.iconBtn}>
+                  <Feather name="minimize-2" size={16} color="#94a3b8" />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={onCancel} style={styles.iconBtn}>
+                  <Feather name="x" size={16} color="#f43f5e" />
+                </TouchableOpacity>
+              </View>
+            </View>
 
-        {/* Real-time Status Detail */}
-        <Text style={styles.statusDetailText} numberOfLines={2}>
-          {statusText || 'Đang kết nối tới Nexus Translator Engine...'}
-        </Text>
+            {/* Chapter Title Badge & Counter */}
+            <View style={styles.counterRow}>
+              <Text style={styles.counterText}>
+                {isComplete ? 'Đã tải & nén thành công!' : 'Tiến độ xử lý AI: '}
+                <Text style={styles.percentNumber}>{percentInt}%</Text>
+              </Text>
+              {chapTitle ? <Text style={styles.chapBadge}>{chapTitle}</Text> : null}
+            </View>
 
-        {/* Action Toolbar */}
-        <View style={styles.toolbar}>
-          {isComplete ? (
-            <TouchableOpacity style={styles.primaryActionBtn} onPress={onOpenLibrary}>
+            {/* Animated Shimmer Progress Bar */}
+            <View style={styles.barBg}>
               <LinearGradient
-                colors={['#00e5ff', '#0097a7']}
+                colors={isError ? ['#ef4444', '#b91c1c'] : ['#00e5ff', '#a855f7', '#ec4899']}
                 start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.gradientBtn}
-              >
-                <Feather name="hard-drive" size={16} color="#000" style={{ marginRight: 6 }} />
-                <Text style={styles.primaryBtnText}>XEM THƯ VIỆN CHAPTER</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          ) : (
-            <>
-              <TouchableOpacity style={styles.toolBtn} onPress={() => setMinimized(true)}>
-                <Feather name="arrow-down-left" size={14} color="#00e5ff" style={{ marginRight: 4 }} />
-                <Text style={styles.toolBtnText}>Thu Nhỏ</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.toolBtn, styles.cancelBtn]} onPress={onCancel}>
-                <Feather name="stop-circle" size={14} color="#f43f5e" style={{ marginRight: 4 }} />
-                <Text style={[styles.toolBtnText, { color: '#f43f5e' }]}>Dừng / Hủy</Text>
-              </TouchableOpacity>
-            </>
-          )}
-        </View>
+                end={{ x: 1, y: 0 }}
+                style={[styles.barFill, { width: `${Math.max(6, percentInt)}%` }]}
+              />
+            </View>
+
+            {/* Detailed Real-time Status Message */}
+            <View style={styles.statusBox}>
+              <Feather name="activity" size={14} color="#00e5ff" style={{ marginRight: 6 }} />
+              <Text style={styles.statusDetailText} numberOfLines={2}>
+                {statusText || 'Đang thiết lập tiến trình dịch thuật tự động...'}
+              </Text>
+            </View>
+
+            {/* Action Toolbar */}
+            <View style={styles.toolbar}>
+              {isComplete ? (
+                <TouchableOpacity style={styles.primaryActionBtn} onPress={onOpenLibrary}>
+                  <LinearGradient
+                    colors={['#00e5ff', '#0097a7']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.gradientBtn}
+                  >
+                    <Feather name="hard-drive" size={18} color="#000" style={{ marginRight: 8 }} />
+                    <Text style={styles.primaryBtnText}>MỞ THƯ VIỆN CHAPTER</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              ) : (
+                <>
+                  <TouchableOpacity style={styles.toolBtn} onPress={() => setMinimized(true)}>
+                    <Feather name="arrow-down-left" size={14} color="#00e5ff" style={{ marginRight: 6 }} />
+                    <Text style={styles.toolBtnText}>Thu Nhỏ Bar</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.toolBtn, styles.cancelBtn]} onPress={onCancel}>
+                    <Feather name="stop-circle" size={14} color="#f43f5e" style={{ marginRight: 6 }} />
+                    <Text style={[styles.toolBtnText, { color: '#f43f5e' }]}>Hủy Tiến Trình</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+            </View>
+          </View>
+        </Animated.View>
       </View>
-    </Animated.View>
+    </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  hudContainer: {
-    position: 'absolute',
-    top: Platform.OS === 'ios' ? 50 : 20,
-    left: 14,
-    right: 14,
-    zIndex: 99999,
+  fullScreenOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(5, 7, 12, 0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
   },
-  hudCard: {
-    backgroundColor: 'rgba(10, 12, 16, 0.95)',
-    borderRadius: 16,
-    padding: 14,
+  hoverCardContainer: {
+    width: '100%',
+    maxWidth: 420,
+  },
+  vipHudCard: {
+    backgroundColor: 'rgba(10, 14, 22, 0.95)',
+    borderRadius: 20,
+    padding: 18,
     borderWidth: 1,
-    borderColor: 'rgba(0, 229, 255, 0.3)',
+    borderColor: 'rgba(0, 229, 255, 0.4)',
     shadowColor: '#00e5ff',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.4,
+    shadowRadius: 24,
+    elevation: 16,
+    overflow: 'hidden',
+  },
+  topAccentBar: {
+    height: 3,
+    width: '100%',
+    position: 'absolute',
+    top: 0,
+    left: 0,
   },
   hudHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: 12,
+    marginTop: 4,
   },
   hudStatusGroup: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 9,
+    height: 9,
+    borderRadius: 4.5,
     marginRight: 8,
   },
   hudTitle: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: 'rgba(255, 255, 255, 0.6)',
-    letterSpacing: 1,
+    fontSize: 11,
+    fontWeight: '900',
+    color: '#00e5ff',
+    letterSpacing: 1.2,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
   headerRightActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
   },
   iconBtn: {
-    padding: 4,
-    borderRadius: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    padding: 6,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
   },
   counterRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   counterText: {
     color: '#ffffff',
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
   },
-  chapBadge: {
+  percentNumber: {
     color: '#00e5ff',
+    fontWeight: '900',
+    fontSize: 18,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+  chapBadge: {
+    color: '#ec4899',
     fontSize: 11,
-    fontWeight: '700',
-    backgroundColor: 'rgba(0, 229, 255, 0.1)',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
+    fontWeight: '800',
+    backgroundColor: 'rgba(236, 72, 153, 0.15)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(0, 229, 255, 0.2)',
+    borderColor: 'rgba(236, 72, 153, 0.3)',
   },
   barBg: {
     width: '100%',
-    height: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 4,
+    height: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderRadius: 5,
     overflow: 'hidden',
-    marginBottom: 8,
+    marginBottom: 14,
     borderWidth: 1,
-    borderColor: 'rgba(0, 229, 255, 0.15)',
+    borderColor: 'rgba(0, 229, 255, 0.2)',
   },
   barFill: {
     height: '100%',
-    borderRadius: 4,
+    borderRadius: 5,
+  },
+  statusBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    padding: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+    marginBottom: 16,
   },
   statusDetailText: {
+    flex: 1,
     color: '#94a3b8',
     fontSize: 12,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    marginBottom: 10,
   },
   toolbar: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 10,
   },
   toolBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
+    paddingVertical: 10,
     backgroundColor: 'rgba(0, 229, 255, 0.08)',
-    borderRadius: 8,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: 'rgba(0, 229, 255, 0.2)',
+    borderColor: 'rgba(0, 229, 255, 0.25)',
   },
   cancelBtn: {
     backgroundColor: 'rgba(244, 63, 94, 0.08)',
-    borderColor: 'rgba(244, 63, 94, 0.2)',
+    borderColor: 'rgba(244, 63, 94, 0.25)',
   },
   toolBtnText: {
     color: '#00e5ff',
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
   },
   primaryActionBtn: {
     width: '100%',
-    borderRadius: 8,
+    borderRadius: 10,
     overflow: 'hidden',
   },
   gradientBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
+    paddingVertical: 12,
   },
   primaryBtnText: {
     color: '#000000',
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '900',
-    letterSpacing: 0.5,
+    letterSpacing: 0.8,
   },
   minimizedPill: {
     position: 'absolute',
@@ -307,17 +369,17 @@ const styles = StyleSheet.create({
     zIndex: 99999,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(10, 12, 16, 0.95)',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    backgroundColor: 'rgba(10, 14, 22, 0.95)',
+    paddingHorizontal: 14,
+    paddingVertical: 9,
     borderRadius: 20,
     borderWidth: 1,
     borderColor: '#00e5ff',
     shadowColor: '#00e5ff',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 8,
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 10,
   },
   minDot: {
     width: 7,
