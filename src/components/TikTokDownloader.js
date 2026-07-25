@@ -10,6 +10,20 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { dohFetch } from '../utils/dns';
 
 /**
+ * ArrayBuffer to Base64 Converter
+ */
+export function arrayBufferToBase64(buffer) {
+  let binary = '';
+  const bytes = new Uint8Array(buffer);
+  const len = bytes.byteLength;
+  for (let i = 0; i < len; i += 8192) {
+    const chunk = bytes.subarray(i, Math.min(i + 8192, len));
+    binary += String.fromCharCode.apply(null, chunk);
+  }
+  return global.btoa ? global.btoa(binary) : Buffer.from(binary, 'binary').toString('base64');
+}
+
+/**
  * Extracts a valid HTTP/HTTPS URL from raw Douyin/TikTok share text
  */
 export function extractUrlFromText(text) {
@@ -93,11 +107,14 @@ export default function TikTokDownloader({ backendUrl }) {
       const filename = `tiktok_${Date.now()}.${extension}`;
       const targetUri = FileSystem.documentDirectory + filename;
 
-      const downloadRes = await FileSystem.downloadAsync(fileUrl, targetUri);
-
-      if (downloadRes.status !== 200) {
+      const downloadRes = await dohFetch(fileUrl);
+      if (!downloadRes.ok) {
         throw new Error(`HTTP ${downloadRes.status}`);
       }
+
+      const arrayBuf = await downloadRes.arrayBuffer();
+      const base64Data = arrayBufferToBase64(arrayBuf);
+      await FileSystem.writeAsStringAsync(targetUri, base64Data, { encoding: FileSystem.EncodingType.Base64 });
 
       setDownloadStatus('Tải hoàn tất! Đang mở menu chia sẻ...');
 

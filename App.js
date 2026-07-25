@@ -11,7 +11,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 
 import DownloadHUD from './src/components/DownloadHUD';
-import TikTokDownloader from './src/components/TikTokDownloader';
+import TikTokDownloader, { arrayBufferToBase64 } from './src/components/TikTokDownloader';
 import MangaPreviewModal from './src/components/MangaPreviewModal';
 import { dohFetch, DNS_PROVIDERS } from './src/utils/dns';
 import { calculateStorageUsage, formatBytes, exportChapterAsCBZ } from './src/utils/storage';
@@ -192,22 +192,27 @@ export default function App() {
     }
   };
 
+  // Modern In-Memory Stream Zip Fetcher without FileSystem.downloadAsync Deprecation Issue
   const downloadAndExtractZip = async (filename, chapTitle) => {
     try {
-      setHudStatusText('Đang tải tệp CBZ đóng gói về storage...');
-      setHudProgress(0.85);
+      setHudStatusText('Đang kết nối luồng tải tệp CBZ...');
+      setHudProgress(0.82);
 
-      const zipUri = FileSystem.cacheDirectory + filename;
-      const downloadRes = await FileSystem.downloadAsync(`${backendUrl}/download/${filename}`, zipUri);
+      const downloadRes = await dohFetch(`${backendUrl}/download/${filename}`);
 
-      if (downloadRes.status !== 200) {
+      if (!downloadRes.ok) {
         throw new Error(`Server trả về mã lỗi HTTP ${downloadRes.status}`);
       }
 
-      setHudStatusText('Đang kiểm tra tính hợp lệ của tệp ZIP...');
-      setHudProgress(0.88);
+      setHudStatusText('Đang tải dữ liệu nhị phân tệp ZIP...');
+      setHudProgress(0.86);
 
-      const zipB64 = await FileSystem.readAsStringAsync(zipUri, { encoding: FileSystem.EncodingType.Base64 });
+      const arrayBuf = await downloadRes.arrayBuffer();
+
+      setHudStatusText('Đang chuyển đổi tệp ZIP vào bộ nhớ...');
+      setHudProgress(0.89);
+
+      const zipB64 = arrayBufferToBase64(arrayBuf);
 
       if (!zipB64 || zipB64.length < 20 || !zipB64.startsWith('UEsDB')) {
         throw new Error("Tệp ZIP chưa được tạo xong hoặc link bị lỗi HTML 404/500");
@@ -237,8 +242,6 @@ export default function App() {
         setHudProgress(writeProgress);
         setHudStatusText(`Đang ghi dữ liệu: ${count}/${files.length} trang`);
       }
-
-      await FileSystem.deleteAsync(zipUri, { idempotent: true });
 
       setHudProgress(1.0);
       setHudStatusText('HOÀN TẤT VIP! Chapter đã lưu trữ thành công');
@@ -797,7 +800,7 @@ const styles = StyleSheet.create({
   },
   storageHeaderRow: {
     flexDirection: 'row',
-    justify.content: 'space-between',
+    justifyContent: 'space-between',
     alignItems: 'center',
     marginTop: 4,
   },
