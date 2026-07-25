@@ -1,0 +1,76 @@
+name: Build iOS IPA (Nexus Manga)
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm install --legacy-peer-deps
+
+      - name: Expo Prebuild (Generate iOS Xcode Project)
+        run: |
+          npx expo prebuild --platform ios --no-install
+
+      - name: Find Xcode Workspace or Project
+        id: find_proj
+        run: |
+          PROJ=$(find ios -name "*.xcworkspace" -o -name "*.xcodeproj" | head -n 1)
+          echo "proj_path=$PROJ" >> $GITHUB_OUTPUT
+          SCHEME=$(basename "$PROJ" | sed 's/\.[^.]*$//')
+          echo "scheme_name=$SCHEME" >> $GITHUB_OUTPUT
+
+      - name: Build Unsigned iOS Archive & IPA
+        run: |
+          cd ios
+          xcodebuild clean archive \
+            -workspace *.xcworkspace 2>/dev/null || xcodebuild clean archive -project *.xcodeproj \
+            -scheme NexusManga \
+            -configuration Release \
+            -archivePath build/NexusManga.xcarchive \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            PROVISIONING_PROFILE="" \
+            CODE_SIGNING_ALLOWED=NO || xcodebuild clean archive \
+            -project *.xcodeproj \
+            -scheme NexusManga \
+            -configuration Release \
+            -archivePath build/NexusManga.xcarchive \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            PROVISIONING_PROFILE="" \
+            CODE_SIGNING_ALLOWED=NO
+          
+          mkdir -p ../Payload
+          cp -r build/NexusManga.xcarchive/Products/Applications/*.app ../Payload/ || cp -r build/Release-iphoneos/*.app ../Payload/ || true
+          cd ..
+          zip -r Nexus-iOS.ipa Payload
+
+      - name: Upload GoFile Backup
+        run: |
+          echo "Uploading to GoFile.io..."
+          SERVER=$(curl -s https://api.gofile.io/servers | jq -r '.data.servers[0].name')
+          curl -s -F "file=@Nexus-iOS.ipa" https://${SERVER}.gofile.io/uploadFile || true
+          echo ""
+
+      - name: Upload Build Artifact (IPA)
+        uses: actions/upload-artifact@v4
+        with:
+          name: Nexus-iOS.ipa
+          path: Nexus-iOS.ipa
+          retention-days: 7
