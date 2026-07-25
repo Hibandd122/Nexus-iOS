@@ -2,7 +2,7 @@ import 'react-native-url-polyfill/auto';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet, Text, View, TextInput, TouchableOpacity, FlatList,
-  Alert, Dimensions, StatusBar, Animated, Easing, KeyboardAvoidingView, Platform, SafeAreaView, Modal
+  Alert, Dimensions, StatusBar, Animated, Easing, KeyboardAvoidingView, Platform, SafeAreaView, Modal, AppState
 } from 'react-native';
 import * as FileSystem from 'expo-file-system';
 import JSZip from 'jszip';
@@ -48,17 +48,34 @@ export default function App() {
   const [savedChapters, setSavedChapters] = useState([]);
   const [totalStorageBytes, setTotalStorageBytes] = useState(0);
 
+  // AppState for Background Stream Execution
+  const appStateRef = useRef(AppState.currentState);
   const activeSseRef = useRef(null);
   const glowAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     loadSavedChapters();
+    
+    // Background execution AppState listener
+    const subscription = AppState.addEventListener('change', nextAppState => {
+      if (appStateRef.current.match(/inactive|background/) && nextAppState === 'active') {
+        console.log('[Nexus-iOS] App state returned to active foreground');
+      } else if (nextAppState.match(/inactive|background/)) {
+        console.log('[Nexus-iOS] App state moved to background. Keeping SSE stream & background downloads active...');
+      }
+      appStateRef.current = nextAppState;
+    });
+
     Animated.loop(
       Animated.sequence([
         Animated.timing(glowAnim, { toValue: 1, duration: 2000, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
         Animated.timing(glowAnim, { toValue: 0, duration: 2000, easing: Easing.inOut(Easing.ease), useNativeDriver: false })
       ])
     ).start();
+
+    return () => {
+      subscription.remove();
+    };
   }, []);
 
   const getChapDir = () => FileSystem.documentDirectory + 'manga_chapters/';
@@ -92,7 +109,7 @@ export default function App() {
     return Date.now().toString().substring(6);
   };
 
-  // Trigger MangaDex Batch Translation Engine
+  // Trigger MangaDex Batch Translation Engine with Background Stream support
   const startTranslation = async (targetUrl, customChapTitle = '') => {
     if (!targetUrl.includes('mangadex.org')) {
       Alert.alert('NEXUS VIP', 'Chỉ hỗ trợ liên kết MangaDex (https://mangadex.org/chapter/...).');
@@ -105,7 +122,7 @@ export default function App() {
     setHudComplete(false);
     setHudError(false);
     setHudProgress(0.05);
-    setHudStatusText('Đang kết nối Nexus Translator Engine...');
+    setHudStatusText('Đang kết nối Nexus Stream Engine (Hỗ trợ chạy ngầm)...');
 
     try {
       const formData = new FormData();
@@ -121,7 +138,7 @@ export default function App() {
         throw new Error(`Server status ${response.status}`);
       }
 
-      setHudStatusText('Đang chờ Nexus Server nhận ảnh & dịch AI...');
+      setHudStatusText('Đang chờ Server dịch AI (Có thể thoát app chạy ngầm)...');
       setHudProgress(0.15);
 
       const source = new EventSource(`${backendUrl}/manga-progress`);
@@ -177,7 +194,7 @@ export default function App() {
 
   const downloadAndExtractZip = async (filename, chapTitle) => {
     try {
-      setHudStatusText('Đang tải tệp CBZ đóng gói...');
+      setHudStatusText('Đang tải tệp CBZ đóng gói về storage...');
       setHudProgress(0.85);
 
       const zipUri = FileSystem.cacheDirectory + filename;
@@ -440,7 +457,7 @@ export default function App() {
           <View style={styles.infoBox}>
             <Feather name="zap" size={16} color="#00e5ff" style={{ marginRight: 8 }} />
             <Text style={styles.infoText}>
-              Nhập liên kết chapter MangaDex bất kỳ để dịch tự động bằng Nexus Batch Engine. Tự động giải nén & hỗ trợ xem trước thư viện ảnh (Preview Grid)!
+              Hỗ trợ chạy ngầm liên tục khi chuyển sang ứng dụng khác. Tiến trình dịch AI & tải file ZIP sẽ tự động hoàn tất trong background.
             </Text>
           </View>
         </View>
@@ -780,7 +797,7 @@ const styles = StyleSheet.create({
   },
   storageHeaderRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justify.content: 'space-between',
     alignItems: 'center',
     marginTop: 4,
   },

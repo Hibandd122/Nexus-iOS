@@ -9,7 +9,13 @@
     "backgroundColor": "#050505",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.nexus.manga"
+      "bundleIdentifier": "com.nexus.manga",
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "fetch",
+          "processing"
+        ]
+      }
     },
     "android": {
       "adaptiveIcon": {
