@@ -3,6 +3,24 @@ import * as Sharing from 'expo-sharing';
 import JSZip from 'jszip';
 
 const getChapDir = () => FileSystem.documentDirectory + 'manga_chapters/';
+const isImageFile = (name) => /\.(jpe?g|png|webp|gif|avif)$/i.test(name);
+
+async function walkFiles(directoryUri, relativePrefix = '') {
+  const entries = await FileSystem.readDirectoryAsync(directoryUri);
+  const files = [];
+
+  for (const entry of entries) {
+    const entryUri = directoryUri + entry;
+    const info = await FileSystem.getInfoAsync(entryUri);
+    if (info.isDirectory) {
+      files.push(...await walkFiles(`${entryUri}/`, `${relativePrefix}${entry}/`));
+    } else {
+      files.push({ name: `${relativePrefix}${entry}`, uri: entryUri, info });
+    }
+  }
+
+  return files;
+}
 
 /**
  * Calculates total storage used by all saved chapters
@@ -24,19 +42,18 @@ export async function calculateStorageUsage() {
       const folderPath = dir + folder + '/';
       const folderInfo = await FileSystem.getInfoAsync(folderPath);
       if (folderInfo.exists && folderInfo.isDirectory) {
-        const files = await FileSystem.readDirectoryAsync(folderPath);
+        const files = await walkFiles(folderPath);
         let folderSize = 0;
         for (const file of files) {
-          const fileInfo = await FileSystem.getInfoAsync(folderPath + file);
-          if (fileInfo.exists && fileInfo.size) {
-            folderSize += fileInfo.size;
+          if (file.info.exists && file.info.size) {
+            folderSize += file.info.size;
           }
         }
         totalBytes += folderSize;
         chapterDetails.push({
           id: folder,
           sizeBytes: folderSize,
-          imageCount: files.length,
+          imageCount: files.filter(file => isImageFile(file.name)).length,
         });
       }
     }
@@ -66,14 +83,13 @@ export function formatBytes(bytes, decimals = 2) {
 export async function exportChapterAsCBZ(chapId) {
   try {
     const dirPath = getChapDir() + chapId + '/';
-    const files = await FileSystem.readDirectoryAsync(dirPath);
-    files.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    const files = await walkFiles(dirPath);
+    files.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
 
     const zip = new JSZip();
     for (const file of files) {
-      const fileUri = dirPath + file;
-      const b64 = await FileSystem.readAsStringAsync(fileUri, { encoding: FileSystem.EncodingType.Base64 });
-      zip.file(file, b64, { base64: true });
+      const b64 = await FileSystem.readAsStringAsync(file.uri, { encoding: FileSystem.EncodingType.Base64 });
+      zip.file(file.name, b64, { base64: true });
     }
 
     const zipBase64 = await zip.generateAsync({ type: 'base64' });

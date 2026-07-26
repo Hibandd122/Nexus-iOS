@@ -3,7 +3,7 @@ import {
   StyleSheet, View, Text, Modal, TouchableOpacity, FlatList, Image,
   Dimensions, StatusBar, Platform, SafeAreaView
 } from 'react-native';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -29,12 +29,30 @@ export default function MangaPreviewModal({ visible, chapId, onClose, onExportCB
 
   const getChapDir = () => FileSystem.documentDirectory + 'manga_chapters/';
 
+  const isImageFile = (name) => /\.(jpe?g|png|webp|gif|avif)$/i.test(name);
+
+  const findImageUris = async (directoryUri) => {
+    const entries = await FileSystem.readDirectoryAsync(directoryUri);
+    const imageUris = [];
+
+    for (const entry of entries) {
+      const entryUri = directoryUri + entry;
+      const info = await FileSystem.getInfoAsync(entryUri);
+      if (info.isDirectory) {
+        imageUris.push(...await findImageUris(`${entryUri}/`));
+      } else if (isImageFile(entry)) {
+        imageUris.push(entryUri);
+      }
+    }
+
+    return imageUris;
+  };
+
   const loadChapterImages = async (folderName) => {
     try {
       const dirPath = getChapDir() + folderName + '/';
-      const files = await FileSystem.readDirectoryAsync(dirPath);
-      files.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
-      const fullUris = files.map(f => dirPath + f);
+      const fullUris = await findImageUris(dirPath);
+      fullUris.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
       setImages(fullUris);
     } catch (e) {
       console.log('Error loading preview images:', e);
