@@ -4,6 +4,29 @@ import JSZip from 'jszip';
 
 const getChapDir = () => FileSystem.documentDirectory + 'manga_chapters/';
 const isImageFile = (name) => /\.(jpe?g|png|webp|gif|avif)$/i.test(name);
+const CHAPTER_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
+
+export async function cleanupExpiredChapters() {
+  const rootDir = getChapDir();
+  const rootInfo = await FileSystem.getInfoAsync(rootDir);
+  if (!rootInfo.exists) return 0;
+
+  const now = Date.now();
+  const entries = await FileSystem.readDirectoryAsync(rootDir);
+  let removedCount = 0;
+
+  for (const entry of entries) {
+    const entryUri = `${rootDir}${entry}`;
+    const info = await FileSystem.getInfoAsync(entryUri);
+    const lastChanged = (info.modificationTime || info.creationTime || 0) * 1000;
+    if (info.isDirectory && lastChanged > 0 && now - lastChanged >= CHAPTER_RETENTION_MS) {
+      await FileSystem.deleteAsync(entryUri, { idempotent: true });
+      removedCount++;
+    }
+  }
+
+  return removedCount;
+}
 
 async function walkFiles(directoryUri, relativePrefix = '') {
   const entries = await FileSystem.readDirectoryAsync(directoryUri);

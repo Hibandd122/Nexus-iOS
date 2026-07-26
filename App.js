@@ -2,7 +2,7 @@ import 'react-native-url-polyfill/auto';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet, Text, View, TextInput, TouchableOpacity, FlatList,
-  Alert, Dimensions, StatusBar, Animated, Easing, KeyboardAvoidingView, Platform, SafeAreaView, Modal, AppState
+  Alert, Dimensions, StatusBar, Animated, Easing, KeyboardAvoidingView, Platform, SafeAreaView, Modal, AppState, ActivityIndicator
 } from 'react-native';
 // SDK 56 keeps the string-based FileSystem API under the legacy entrypoint.
 import * as FileSystem from 'expo-file-system/legacy';
@@ -15,9 +15,10 @@ import DownloadHUD from './src/components/DownloadHUD';
 import TikTokDownloader, { arrayBufferToBase64 } from './src/components/TikTokDownloader';
 import MangaPreviewModal from './src/components/MangaPreviewModal';
 import { dohFetch, DNS_PROVIDERS } from './src/utils/dns';
-import { calculateStorageUsage, formatBytes, exportChapterAsCBZ } from './src/utils/storage';
+import { calculateStorageUsage, formatBytes, exportChapterAsCBZ, cleanupExpiredChapters } from './src/utils/storage';
 
 const DEFAULT_BACKEND_URL = "https://mahirun.hicanh69.workers.dev";
+const CATALOG_API_URL = "https://mangadex-bypass.vercel.app";
 const { width } = Dimensions.get('window');
 
 export default function App() {
@@ -35,6 +36,11 @@ export default function App() {
 
   // Direct Link Downloader State
   const [urlInput, setUrlInput] = useState('');
+  const [chapterPickerVisible, setChapterPickerVisible] = useState(false);
+  const [chapterPickerLoading, setChapterPickerLoading] = useState(false);
+  const [chapterPickerError, setChapterPickerError] = useState('');
+  const [chapterTitle, setChapterTitle] = useState('');
+  const [chapterOptions, setChapterOptions] = useState([]);
 
   // HUD & Translation Task State
   const [hudVisible, setHudVisible] = useState(false);
@@ -48,6 +54,7 @@ export default function App() {
   // Saved Chapters & Storage State
   const [savedChapters, setSavedChapters] = useState([]);
   const [totalStorageBytes, setTotalStorageBytes] = useState(0);
+  const [selectedMangaTitle, setSelectedMangaTitle] = useState(null);
 
   // AppState for Background Stream Execution
   const appStateRef = useRef(AppState.currentState);
@@ -88,6 +95,7 @@ export default function App() {
       if (!dirInfo.exists) {
         await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
       }
+      await cleanupExpiredChapters();
       const files = await FileSystem.readDirectoryAsync(dir);
       files.sort((a, b) => b.localeCompare(a));
       setSavedChapters(files);
@@ -98,6 +106,26 @@ export default function App() {
       console.log("Error loading chapters", e);
     }
   };
+
+  const getChapterDisplayName = (folderName) =>
+    folderName.replace(/_\d{1,2}h\d{1,2}$/, '').trim();
+
+  const getMangaTitleFromFolder = (folderName) => {
+    const chapterMarker = getChapterDisplayName(folderName).indexOf(' - Chapter ');
+    if (chapterMarker > 0) {
+      return getChapterDisplayName(folderName).slice(0, chapterMarker).trim();
+    }
+    return getChapterDisplayName(folderName);
+  };
+
+  const groupedManga = savedChapters.reduce((groups, folderName) => {
+    const mangaTitle = getMangaTitleFromFolder(folderName);
+    if (!groups[mangaTitle]) groups[mangaTitle] = [];
+    groups[mangaTitle].push(folderName);
+    return groups;
+  }, {});
+
+  const mangaTitles = Object.keys(groupedManga).sort((a, b) => a.localeCompare(b));
 
   const extractChapInfo = (url) => {
     try {
@@ -110,6 +138,85 @@ export default function App() {
     return Date.now().toString().substring(6);
   };
 
+  const extractChapterId = (url) => {
+    const match = String(url).match(/mangadex\.org\/chapter\/([0-9a-f-]{36})/i);
+    return match ? match[1] : null;
+  };
+
+  const sanitizeChapterTitle = (value, fallbackSource = '') => {
+    const cleaned = String(value || '')
+      .replace(/[<>:"/\\|?*\u0000-\u001F]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    return cleaned.slice(0, 80) || `Truyen_${extractChapInfo(fallbackSource || urlInput)}`;
+  };
+
+  const resolveMangaTitle = async (targetUrl) => {
+    const chapterId = extractChapterId(targetUrl);
+    if (!chapterId) return `Truyen_${extractChapInfo(targetUrl)}`;
+
+    try {
+      const response = await dohFetch(
+        `https://api.mangadex.org/chapter/${chapterId}?includes[]=manga`
+      );
+      if (!response.ok) throw new Error(`MangaDex title HTTP ${response.status}`);
+
+      const data = await response.json();
+      const manga = data?.data?.relationships?.find((item) => item.type === 'manga');
+      const titles = manga?.attributes?.title || {};
+      const title = titles.vi || titles.en || titles['ja-ro'] || Object.values(titles)[0];
+      return sanitizeChapterTitle(title, targetUrl);
+    } catch (error) {
+      console.warn('Không lấy được tên truyện từ MangaDex:', error.message);
+      return `Truyen_${extractChapInfo(targetUrl)}`;
+    }
+  };
+
+  const handleUrlChange = (value) => {
+    setUrlInput(value);
+    setChapterOptions([]);
+    setChapterPickerError('');
+  };
+
+  const loadChaptersForTitle = async () => {
+    const titleUrl = urlInput.trim();
+    if (!titleUrl.includes('mangadex.org/title/')) {
+      startTranslation(titleUrl);
+      return;
+    }
+
+    setChapterPickerVisible(true);
+    setChapterPickerLoading(true);
+    setChapterPickerError('');
+    try {
+      const response = await dohFetch(
+        `${CATALOG_API_URL}/api/chapters?url=${encodeURIComponent(titleUrl)}`
+      );
+      const data = await response.json();
+      if (!response.ok || !Array.isArray(data.chapters)) {
+        throw new Error(data.error || `API chapter HTTP ${response.status}`);
+      }
+      setChapterTitle(data.mangaTitle || 'Chọn chapter');
+      setChapterOptions(data.chapters);
+    } catch (error) {
+      setChapterPickerError(error.message || 'Không thể tải danh sách chapter');
+    } finally {
+      setChapterPickerLoading(false);
+    }
+  };
+
+  const selectChapter = (chapter) => {
+    const selectedUrl = `https://mangadex.org/chapter/${chapter.id}`;
+    const selectedChapterLabel = chapter.chapter || 'Oneshot';
+    const selectedTitle = chapter.title ? ` - ${chapter.title}` : '';
+    setUrlInput(selectedUrl);
+    setChapterPickerVisible(false);
+    startTranslation(
+      selectedUrl,
+      sanitizeChapterTitle(`${chapterTitle} - Chapter ${selectedChapterLabel}${selectedTitle}`, selectedUrl)
+    );
+  };
+
   // Trigger MangaDex Batch Translation Engine with Background Stream support
   const startTranslation = async (targetUrl, customChapTitle = '') => {
     if (!targetUrl.includes('mangadex.org')) {
@@ -117,7 +224,7 @@ export default function App() {
       return;
     }
 
-    const title = customChapTitle || `Chap_${extractChapInfo(targetUrl)}`;
+    let title = customChapTitle || `Truyen_${extractChapInfo(targetUrl)}`;
     setHudChapTitle(title);
     setHudVisible(true);
     setHudComplete(false);
@@ -126,6 +233,12 @@ export default function App() {
     setHudStatusText('Đang kết nối Nexus Stream Engine (Hỗ trợ chạy ngầm)...');
 
     try {
+      if (!customChapTitle) {
+        setHudStatusText('Đang lấy tên truyện từ MangaDex...');
+        title = await resolveMangaTitle(targetUrl);
+        setHudChapTitle(title);
+      }
+
       const formData = new FormData();
       formData.append("url", targetUrl);
       formData.append("prompt_mode", "none");
@@ -328,6 +441,7 @@ export default function App() {
           onPress: async () => {
             const dir = getChapDir();
             await FileSystem.deleteAsync(dir, { idempotent: true });
+            setSelectedMangaTitle(null);
             loadSavedChapters();
           },
           style: 'destructive'
@@ -374,6 +488,64 @@ export default function App() {
         onClose={() => setPreviewModalVisible(false)}
         onExportCBZ={(chapId) => handleExportCBZ(chapId)}
       />
+
+      <Modal
+        visible={chapterPickerVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setChapterPickerVisible(false)}
+      >
+        <View style={styles.chapterPickerOverlay}>
+          <View style={styles.chapterPickerCard}>
+            <View style={styles.chapterPickerHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.chapterPickerKicker}>CHAPTER SELECTOR</Text>
+                <Text style={styles.chapterPickerTitle} numberOfLines={2}>
+                  {chapterTitle || 'Danh sách chapter'}
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setChapterPickerVisible(false)} style={styles.chapterPickerClose}>
+                <Feather name="x" size={18} color="#94a3b8" />
+              </TouchableOpacity>
+            </View>
+
+            {chapterPickerLoading ? (
+              <View style={styles.chapterPickerState}>
+                <ActivityIndicator color="#00e5ff" />
+                <Text style={styles.chapterPickerStateText}>Đang tải danh sách chapter...</Text>
+              </View>
+            ) : chapterPickerError ? (
+              <View style={styles.chapterPickerState}>
+                <Feather name="alert-circle" size={24} color="#f43f5e" />
+                <Text style={styles.chapterPickerError}>{chapterPickerError}</Text>
+              </View>
+            ) : (
+              <FlatList
+                data={chapterOptions}
+                keyExtractor={(item) => item.id}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{ gap: 8, paddingBottom: 4 }}
+                renderItem={({ item, index }) => (
+                  <TouchableOpacity style={styles.chapterOption} onPress={() => selectChapter(item)} activeOpacity={0.75}>
+                    <View style={styles.chapterNumber}>
+                      <Text style={styles.chapterNumberText}>{item.chapter || index + 1}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.chapterOptionTitle} numberOfLines={1}>
+                        {item.title || `Chapter ${item.chapter || index + 1}`}
+                      </Text>
+                      <Text style={styles.chapterOptionMeta}>
+                        {item.pages || 0} trang {item.volume ? `• Volume ${item.volume}` : ''}
+                      </Text>
+                    </View>
+                    <Feather name="chevron-right" size={17} color="#64748b" />
+                  </TouchableOpacity>
+                )}
+              />
+            )}
+          </View>
+        </View>
+      </Modal>
 
       {/* Main VIP Header Bar */}
       <View style={styles.header}>
@@ -458,7 +630,7 @@ export default function App() {
                   placeholder="Dán link MangaDex (https://mangadex.org/chapter/...)"
                   placeholderTextColor="#475569"
                   value={urlInput}
-                  onChangeText={setUrlInput}
+                  onChangeText={handleUrlChange}
                   editable={!hudVisible}
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -472,7 +644,7 @@ export default function App() {
 
               <TouchableOpacity
                 onPress={() => {
-                  if (urlInput) startTranslation(urlInput);
+                   if (urlInput) loadChaptersForTitle();
                 }}
                 disabled={hudVisible || !urlInput}
               >
@@ -482,8 +654,8 @@ export default function App() {
                     style={styles.btn}
                     start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
                   >
-                    <Feather name="download-cloud" size={18} color="#000" style={{ marginRight: 8 }} />
-                    <Text style={styles.btnText}>{hudVisible ? 'ĐANG XỬ LÝ HUD...' : '⚡ KÍCH HOẠT NEXUS BATCH ENGINE'}</Text>
+                    <Feather name={urlInput.includes('/title/') ? 'list' : 'download-cloud'} size={18} color="#000" style={{ marginRight: 8 }} />
+                    <Text style={styles.btnText}>{hudVisible ? 'ĐANG XỬ LÝ HUD...' : urlInput.includes('/title/') ? 'CHỌN CHAPTER ĐỂ DỊCH' : '⚡ KÍCH HOẠT NEXUS BATCH ENGINE'}</Text>
                   </LinearGradient>
                 </Animated.View>
               </TouchableOpacity>
@@ -540,7 +712,14 @@ export default function App() {
           </View>
 
           <View style={styles.libraryHeader}>
-            <Text style={styles.subtitle}>DANH SÁCH CHAPTER DỊCH ({savedChapters.length})</Text>
+            {selectedMangaTitle ? (
+              <TouchableOpacity style={styles.libraryBackBtn} onPress={() => setSelectedMangaTitle(null)}>
+                <Feather name="chevron-left" size={16} color="#00e5ff" />
+                <Text style={styles.libraryBackText}>Tất cả truyện</Text>
+              </TouchableOpacity>
+            ) : (
+              <Text style={styles.subtitle}>TRUYỆN ĐÃ DỊCH ({mangaTitles.length})</Text>
+            )}
           </View>
 
           {savedChapters.length === 0 ? (
@@ -549,9 +728,9 @@ export default function App() {
               <Text style={styles.emptyText}>Chưa có chapter nào được lưu</Text>
               <Text style={styles.emptySub}>Nhập Link MangaDex để bắt đầu dịch</Text>
             </View>
-          ) : (
+          ) : selectedMangaTitle ? (
             <FlatList
-              data={savedChapters}
+              data={groupedManga[selectedMangaTitle] || []}
               keyExtractor={item => item}
               style={{ width: '100%' }}
               showsVerticalScrollIndicator={false}
@@ -563,8 +742,8 @@ export default function App() {
                       <Feather name="grid" size={20} color="#00e5ff" />
                     </View>
                     <View style={styles.chapInfo}>
-                      <Text style={styles.chapText} numberOfLines={1}>{item}</Text>
-                      <Text style={styles.chapSub}>Nhấn để Xem trước ảnh • Preview Grid</Text>
+                      <Text style={styles.chapText} numberOfLines={1}>{getChapterDisplayName(item)}</Text>
+                      <Text style={styles.chapSub}>Nhấn để mở chapter và đọc ảnh</Text>
                     </View>
                   </TouchableOpacity>
 
@@ -577,6 +756,26 @@ export default function App() {
                     </TouchableOpacity>
                   </View>
                 </View>
+              )}
+            />
+          ) : (
+            <FlatList
+              data={mangaTitles}
+              keyExtractor={item => item}
+              style={{ width: '100%' }}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: 40, gap: 11 }}
+              renderItem={({ item }) => (
+                <TouchableOpacity style={styles.mangaCard} onPress={() => setSelectedMangaTitle(item)} activeOpacity={0.78}>
+                  <View style={styles.mangaIconWrap}>
+                    <Feather name="book-open" size={21} color="#00e5ff" />
+                  </View>
+                  <View style={styles.mangaInfo}>
+                    <Text style={styles.mangaCardTitle} numberOfLines={2}>{item}</Text>
+                    <Text style={styles.mangaCardMeta}>{groupedManga[item].length} chapter đã dịch • Giữ 7 ngày</Text>
+                  </View>
+                  <Feather name="chevron-right" size={18} color="#64748b" />
+                </TouchableOpacity>
               )}
             />
           )}
@@ -936,6 +1135,19 @@ const styles = StyleSheet.create({
   libraryHeader: {
     marginBottom: 10,
   },
+  libraryBackBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 4,
+    paddingVertical: 5,
+    paddingRight: 10,
+  },
+  libraryBackText: {
+    color: '#00e5ff',
+    fontSize: 12,
+    fontWeight: '800',
+  },
   libraryIntro: {
     marginBottom: 18,
   },
@@ -1019,6 +1231,40 @@ const styles = StyleSheet.create({
   chapSub: {
     color: '#64748b',
     fontSize: 11,
+  },
+  mangaCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 14,
+    borderRadius: 18,
+    backgroundColor: 'rgba(19, 27, 46, 0.68)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.07)',
+  },
+  mangaIconWrap: {
+    width: 46,
+    height: 46,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 14,
+    backgroundColor: 'rgba(0, 229, 255, 0.11)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 229, 255, 0.24)',
+  },
+  mangaInfo: {
+    flex: 1,
+  },
+  mangaCardTitle: {
+    color: '#f8fafc',
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: '800',
+  },
+  mangaCardMeta: {
+    color: '#64748b',
+    fontSize: 11,
+    marginTop: 5,
   },
   exportBtn: {
     padding: 9,
@@ -1105,5 +1351,100 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     fontSize: 13,
     letterSpacing: 1,
+  },
+  chapterPickerOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.72)',
+  },
+  chapterPickerCard: {
+    maxHeight: '82%',
+    backgroundColor: '#101827',
+    padding: 18,
+    borderTopLeftRadius: 26,
+    borderTopRightRadius: 26,
+    borderWidth: 1,
+    borderBottomWidth: 0,
+    borderColor: 'rgba(0, 229, 255, 0.25)',
+  },
+  chapterPickerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  chapterPickerKicker: {
+    color: '#00e5a8',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1.5,
+    marginBottom: 6,
+  },
+  chapterPickerTitle: {
+    color: '#f8fafc',
+    fontSize: 21,
+    lineHeight: 26,
+    fontWeight: '800',
+  },
+  chapterPickerClose: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  chapterPickerState: {
+    minHeight: 160,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  chapterPickerStateText: {
+    color: '#94a3b8',
+    fontSize: 13,
+  },
+  chapterPickerError: {
+    color: '#fda4af',
+    fontSize: 13,
+    lineHeight: 19,
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  chapterOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 11,
+    padding: 12,
+    borderRadius: 15,
+    backgroundColor: 'rgba(255, 255, 255, 0.045)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.07)',
+  },
+  chapterNumber: {
+    minWidth: 44,
+    height: 36,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 10,
+    backgroundColor: 'rgba(0, 229, 255, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 229, 255, 0.25)',
+  },
+  chapterNumberText: {
+    color: '#00e5ff',
+    fontSize: 13,
+    fontWeight: '900',
+    fontVariant: ['tabular-nums'],
+  },
+  chapterOptionTitle: {
+    color: '#e2e8f0',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  chapterOptionMeta: {
+    color: '#64748b',
+    fontSize: 11,
+    marginTop: 4,
   },
 });

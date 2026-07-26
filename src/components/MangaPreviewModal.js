@@ -124,46 +124,32 @@ export default function MangaPreviewModal({ visible, chapId, onClose, onExportCB
                 <TouchableOpacity style={styles.closeFullBtn} onPress={() => setSelectedImage(null)}>
                   <Feather name="x" size={24} color="#00e5ff" />
                 </TouchableOpacity>
-                <Text style={styles.fullPageCounter}>
-                  Trang {selectedIndex + 1} / {images.length}
-                </Text>
+              <View style={styles.readerHint}>
+                <Feather name="chevrons-down" size={14} color="#00e5ff" />
+                <Text style={styles.fullPageCounter}>Kéo xuống để đọc • {images.length} trang</Text>
+              </View>
               </LinearGradient>
 
-              {/* Full Image */}
-              <Image
-                source={{ uri: selectedImage }}
-                style={styles.fullImage}
-                resizeMode="contain"
+              <FlatList
+                data={images}
+                initialScrollIndex={selectedIndex}
+                keyExtractor={(item, index) => `${item}-${index}`}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.readerContent}
+                getItemLayout={(_, index) => ({
+                  length: height - 100,
+                  offset: (height - 100) * index,
+                  index,
+                })}
+                renderItem={({ item, index }) => (
+                  <View style={styles.readerPage}>
+                    <Image source={{ uri: item }} style={styles.readerImage} resizeMode="contain" />
+                    <View style={styles.readerPageBadge}>
+                      <Text style={styles.readerPageText}>{index + 1} / {images.length}</Text>
+                    </View>
+                  </View>
+                )}
               />
-
-              {/* Navigation Controls Overlay */}
-              <View style={styles.fullScreenNavControls}>
-                <TouchableOpacity
-                  disabled={selectedIndex <= 0}
-                  style={[styles.navArrowBtn, selectedIndex <= 0 && styles.disabledNavBtn]}
-                  onPress={() => {
-                    if (selectedIndex > 0) {
-                      setSelectedIndex(selectedIndex - 1);
-                      setSelectedImage(images[selectedIndex - 1]);
-                    }
-                  }}
-                >
-                  <Feather name="chevron-left" size={28} color="#00e5ff" />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  disabled={selectedIndex >= images.length - 1}
-                  style={[styles.navArrowBtn, selectedIndex >= images.length - 1 && styles.disabledNavBtn]}
-                  onPress={() => {
-                    if (selectedIndex < images.length - 1) {
-                      setSelectedIndex(selectedIndex + 1);
-                      setSelectedImage(images[selectedIndex + 1]);
-                    }
-                  }}
-                >
-                  <Feather name="chevron-right" size={28} color="#00e5ff" />
-                </TouchableOpacity>
-              </View>
             </View>
           </Modal>
         )}
@@ -299,6 +285,44 @@ const styles = StyleSheet.create({
   fullImage: {
     width: width,
     height: '100%',
+  },
+  readerHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  readerContent: {
+    paddingTop: 78,
+    paddingBottom: 24,
+  },
+  readerPage: {
+    width,
+    height: height - 100,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#000000',
+    marginBottom: 8,
+  },
+  readerImage: {
+    width,
+    height: height - 116,
+  },
+  readerPageBadge: {
+    position: 'absolute',
+    bottom: 12,
+    alignSelf: 'center',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 10,
+    backgroundColor: 'rgba(10, 14, 22, 0.78)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 229, 255, 0.3)',
+  },
+  readerPageText: {
+    color: '#94a3b8',
+    fontSize: 10,
+    fontWeight: '800',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
   fullScreenNavControls: {
     position: 'absolute',
