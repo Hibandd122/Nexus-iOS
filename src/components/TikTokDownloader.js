@@ -3,7 +3,7 @@ import {
   StyleSheet, View, Text, TextInput, TouchableOpacity, Image,
   ActivityIndicator, Alert, ScrollView, Platform, Animated
 } from 'react-native';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';

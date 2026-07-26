@@ -4,7 +4,8 @@ import {
   StyleSheet, Text, View, TextInput, TouchableOpacity, FlatList,
   Alert, Dimensions, StatusBar, Animated, Easing, KeyboardAvoidingView, Platform, SafeAreaView, Modal, AppState
 } from 'react-native';
-import * as FileSystem from 'expo-file-system';
+// SDK 56 keeps the string-based FileSystem API under the legacy entrypoint.
+import * as FileSystem from 'expo-file-system/legacy';
 import JSZip from 'jszip';
 import EventSource from 'react-native-sse';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -212,16 +213,22 @@ export default function App() {
       setHudStatusText('Đang chuyển đổi tệp ZIP vào bộ nhớ...');
       setHudProgress(0.89);
 
-      const zipB64 = arrayBufferToBase64(arrayBuf);
+      const zipBytes = new Uint8Array(arrayBuf);
+      const hasZipSignature = zipBytes.length >= 4 &&
+        zipBytes[0] === 0x50 && zipBytes[1] === 0x4b &&
+        (zipBytes[2] === 0x03 || zipBytes[2] === 0x05 || zipBytes[2] === 0x07) &&
+        (zipBytes[3] === 0x04 || zipBytes[3] === 0x06 || zipBytes[3] === 0x08);
 
-      if (!zipB64 || zipB64.length < 20 || !zipB64.startsWith('UEsDB')) {
+      if (!hasZipSignature) {
         throw new Error("Tệp ZIP chưa được tạo xong hoặc link bị lỗi HTML 404/500");
       }
 
       setHudStatusText('Đang bung nén ảnh vào storage...');
       setHudProgress(0.92);
 
-      const zip = await JSZip.loadAsync(zipB64, { base64: true });
+      // Let JSZip parse the binary directly; converting a large archive to base64
+      // doubles memory usage and can corrupt the payload on Hermes.
+      const zip = await JSZip.loadAsync(arrayBuf);
 
       const now = new Date();
       const timeStr = `${now.getHours()}h${now.getMinutes()}`;
@@ -236,7 +243,20 @@ export default function App() {
       let count = 0;
       for (const file of files) {
         const base64Data = await file.async("base64");
-        await FileSystem.writeAsStringAsync(extractDir + file.name, base64Data, { encoding: FileSystem.EncodingType.Base64 });
+        // ZIP entries may contain folders. Keep extraction inside the chapter
+        // directory and create each parent before writing the image.
+        const relativeName = file.name.replace(/\\/g, '/').replace(/^\/+/, '');
+        const parts = relativeName.split('/').filter(part => part && part !== '.' && part !== '..');
+        if (parts.length === 0) continue;
+        const outputUri = extractDir + parts.join('/');
+        const parentParts = parts.slice(0, -1);
+        if (parentParts.length > 0) {
+          await FileSystem.makeDirectoryAsync(
+            extractDir + parentParts.join('/') + '/',
+            { intermediates: true }
+          );
+        }
+        await FileSystem.writeAsStringAsync(outputUri, base64Data, { encoding: FileSystem.EncodingType.Base64 });
         count++;
         const writeProgress = 0.92 + (count / files.length) * 0.08;
         setHudProgress(writeProgress);
@@ -325,6 +345,9 @@ export default function App() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor="#050505" />
 
+      <View pointerEvents="none" style={styles.backgroundGlowTop} />
+      <View pointerEvents="none" style={styles.backgroundGlowBottom} />
+
       {/* Extension-Style Floating HUD Overlay */}
       <DownloadHUD
         visible={hudVisible}
@@ -401,6 +424,17 @@ export default function App() {
       {/* Tab 1: Manga Batch Translator */}
       {activeTab === 'manga' && (
         <View style={styles.tabContentContainer}>
+          <View style={styles.heroBlock}>
+            <View style={styles.heroEyebrow}>
+              <View style={styles.liveDot} />
+              <Text style={styles.heroEyebrowText}>NEXUS WORKSPACE</Text>
+            </View>
+            <Text style={styles.heroTitle}>Biến chapter thành trải nghiệm đọc của bạn.</Text>
+            <Text style={styles.heroDescription}>
+              Dịch hàng loạt, lưu offline và mở lại mọi chapter trong một không gian riêng tư.
+            </Text>
+          </View>
+
           <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ width: '100%' }}>
             <View style={styles.glassPanel}>
               <LinearGradient
@@ -474,6 +508,12 @@ export default function App() {
       {/* Tab 3: Offline Library & Storage Management */}
       {activeTab === 'library' && (
         <View style={styles.tabContentContainer}>
+          <View style={styles.libraryIntro}>
+            <Text style={styles.sectionKicker}>OFFLINE LIBRARY</Text>
+            <Text style={styles.libraryTitle}>Kho đọc của bạn</Text>
+            <Text style={styles.libraryDescription}>Mọi chapter đã dịch, luôn sẵn sàng khi không có mạng.</Text>
+          </View>
+
           {/* Storage Meter Banner */}
           <View style={styles.storageMeterCard}>
             <LinearGradient
@@ -595,27 +635,45 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#050505',
   },
+  backgroundGlowTop: {
+    position: 'absolute',
+    width: 280,
+    height: 280,
+    borderRadius: 140,
+    backgroundColor: 'rgba(0, 229, 255, 0.08)',
+    top: -150,
+    right: -90,
+  },
+  backgroundGlowBottom: {
+    position: 'absolute',
+    width: 240,
+    height: 240,
+    borderRadius: 120,
+    backgroundColor: 'rgba(168, 85, 247, 0.06)',
+    bottom: -100,
+    left: -100,
+  },
   header: {
-    backgroundColor: '#0a0c10',
-    paddingHorizontal: 14,
+    backgroundColor: 'rgba(10, 12, 16, 0.94)',
+    paddingHorizontal: 18,
     paddingTop: Platform.OS === 'android' ? 10 : 0,
-    paddingBottom: 10,
+    paddingBottom: 14,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0, 229, 255, 0.15)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.07)',
   },
   brandRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
-    marginTop: 4,
+    marginBottom: 14,
+    marginTop: 8,
   },
   brandTitle: {
-    fontSize: 22,
+    fontSize: 21,
     fontWeight: '900',
     color: '#00e5ff',
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    letterSpacing: 1.5,
+    letterSpacing: 1.2,
   },
   vipBadge: {
     backgroundColor: 'rgba(0, 229, 255, 0.15)',
@@ -632,15 +690,20 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   settingsBtn: {
-    padding: 8,
-    borderRadius: 10,
-    backgroundColor: 'rgba(0, 229, 255, 0.1)',
+    width: 38,
+    height: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.09)',
   },
   navTabs: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(15, 23, 42, 0.9)',
-    borderRadius: 14,
-    padding: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.055)',
+    borderRadius: 16,
+    padding: 4,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.05)',
   },
@@ -649,12 +712,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 9,
-    borderRadius: 11,
+    paddingVertical: 10,
+    borderRadius: 12,
     gap: 5,
   },
   tabBtnActive: {
-    backgroundColor: 'rgba(0, 229, 255, 0.15)',
+    backgroundColor: 'rgba(0, 229, 255, 0.13)',
     borderWidth: 1,
     borderColor: 'rgba(0, 229, 255, 0.4)',
   },
@@ -684,19 +747,58 @@ const styles = StyleSheet.create({
   },
   tabContentContainer: {
     flex: 1,
-    padding: 16,
+    paddingHorizontal: 18,
+    paddingTop: 20,
+    paddingBottom: 16,
+  },
+  heroBlock: {
+    paddingHorizontal: 2,
+    marginBottom: 20,
+  },
+  heroEyebrow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    marginBottom: 10,
+  },
+  liveDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: '#00e5a8',
+  },
+  heroEyebrowText: {
+    color: '#00e5a8',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1.5,
+  },
+  heroTitle: {
+    maxWidth: 340,
+    color: '#f8fafc',
+    fontSize: 28,
+    lineHeight: 34,
+    fontWeight: '800',
+    letterSpacing: -0.8,
+  },
+  heroDescription: {
+    maxWidth: 350,
+    color: '#94a3b8',
+    fontSize: 13,
+    lineHeight: 20,
+    marginTop: 10,
   },
   glassPanel: {
     width: '100%',
-    backgroundColor: 'rgba(15, 23, 42, 0.8)',
-    padding: 16,
-    borderRadius: 18,
+    backgroundColor: 'rgba(19, 27, 46, 0.78)',
+    padding: 18,
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: 'rgba(0, 229, 255, 0.3)',
-    marginBottom: 16,
+    borderColor: 'rgba(0, 229, 255, 0.22)',
+    marginBottom: 14,
     shadowColor: '#00e5ff',
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.18,
     shadowRadius: 16,
     elevation: 8,
     overflow: 'hidden',
@@ -741,11 +843,11 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   input: {
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(2, 6, 23, 0.72)',
     color: '#00e5ff',
-    padding: 14,
+    padding: 15,
     paddingRight: 36,
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: 'rgba(0, 229, 255, 0.3)',
     fontSize: 13,
@@ -777,9 +879,9 @@ const styles = StyleSheet.create({
   infoBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 229, 255, 0.05)',
-    padding: 14,
-    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.045)',
+    padding: 15,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: 'rgba(0, 229, 255, 0.15)',
   },
@@ -790,9 +892,9 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   storageMeterCard: {
-    backgroundColor: 'rgba(15, 23, 42, 0.8)',
-    padding: 14,
-    borderRadius: 16,
+    backgroundColor: 'rgba(19, 27, 46, 0.78)',
+    padding: 16,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: 'rgba(16, 185, 129, 0.3)',
     marginBottom: 16,
@@ -834,6 +936,29 @@ const styles = StyleSheet.create({
   libraryHeader: {
     marginBottom: 10,
   },
+  libraryIntro: {
+    marginBottom: 18,
+  },
+  sectionKicker: {
+    color: '#10b981',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1.5,
+    marginBottom: 7,
+  },
+  libraryTitle: {
+    color: '#f8fafc',
+    fontSize: 28,
+    lineHeight: 34,
+    fontWeight: '800',
+    letterSpacing: -0.8,
+  },
+  libraryDescription: {
+    color: '#94a3b8',
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: 6,
+  },
   subtitle: {
     color: '#94a3b8',
     fontSize: 12,
@@ -859,10 +984,10 @@ const styles = StyleSheet.create({
   },
   chapCard: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(15, 23, 42, 0.6)',
-    padding: 12,
-    borderRadius: 14,
-    marginBottom: 10,
+    backgroundColor: 'rgba(19, 27, 46, 0.68)',
+    padding: 13,
+    borderRadius: 18,
+    marginBottom: 11,
     alignItems: 'center',
     justifyContent: 'space-between',
     borderWidth: 1,

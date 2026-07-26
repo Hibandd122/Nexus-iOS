@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  StyleSheet, Text, View, TouchableOpacity, Animated, Easing, Platform, Modal, Dimensions
+  StyleSheet, Text, View, Pressable, Animated, Easing, Platform, Modal, Dimensions
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -23,11 +23,13 @@ export default function DownloadHUD({
   const [minimized, setMinimized] = useState(false);
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const hoverAnim = useRef(new Animated.Value(0)).current;
+  const cardScale = useRef(new Animated.Value(0.96)).current;
+  const cardOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (visible) {
       // Continuous floating hover animation
-      Animated.loop(
+      const floatLoop = Animated.loop(
         Animated.sequence([
           Animated.timing(hoverAnim, {
             toValue: -8,
@@ -42,10 +44,11 @@ export default function DownloadHUD({
             useNativeDriver: true,
           }),
         ])
-      ).start();
+      );
+      floatLoop.start();
 
       // Pulsing status dot animation
-      Animated.loop(
+      const pulseLoop = Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, {
             toValue: 0.3,
@@ -60,7 +63,20 @@ export default function DownloadHUD({
             useNativeDriver: true,
           }),
         ])
-      ).start();
+      );
+      pulseLoop.start();
+
+      Animated.parallel([
+        Animated.spring(cardScale, { toValue: 1, damping: 14, stiffness: 180, useNativeDriver: true }),
+        Animated.timing(cardOpacity, { toValue: 1, duration: 220, useNativeDriver: true }),
+      ]).start();
+
+      return () => {
+        floatLoop.stop();
+        pulseLoop.stop();
+        cardScale.stopAnimation();
+        cardOpacity.stopAnimation();
+      };
     } else {
       setMinimized(false);
     }
@@ -83,10 +99,12 @@ export default function DownloadHUD({
   // Minimized Compact Floating Mode
   if (minimized) {
     return (
-      <TouchableOpacity
-        activeOpacity={0.85}
+      <Pressable
         onPress={() => setMinimized(false)}
-        style={styles.minimizedPill}
+        style={({ pressed, hovered }) => [
+          styles.minimizedPill,
+          (pressed || hovered) && styles.minimizedPillActive,
+        ]}
       >
         <Animated.View
           style={[styles.minDot, { backgroundColor: dotColor, opacity: isComplete || isError ? 1 : pulseAnim }]}
@@ -96,7 +114,7 @@ export default function DownloadHUD({
           {isComplete ? '100% XONG' : `${percentInt}% • ${chapTitle || 'Chapter'}`}
         </Text>
         <Feather name="maximize-2" size={12} color="#94a3b8" style={{ marginLeft: 6 }} />
-      </TouchableOpacity>
+      </Pressable>
     );
   }
 
@@ -104,7 +122,7 @@ export default function DownloadHUD({
   return (
     <Modal visible={visible} transparent animationType="fade">
       <View style={styles.fullScreenOverlay}>
-        <Animated.View style={[styles.hoverCardContainer, { transform: [{ translateY: hoverAnim }] }]}>
+        <Animated.View style={[styles.hoverCardContainer, { opacity: cardOpacity, transform: [{ translateY: hoverAnim }, { scale: cardScale }] }]}>
           <View style={styles.vipHudCard}>
             {/* Top Glow Accent Bar */}
             <LinearGradient
@@ -127,12 +145,18 @@ export default function DownloadHUD({
               </View>
 
               <View style={styles.headerRightActions}>
-                <TouchableOpacity onPress={() => setMinimized(true)} style={styles.iconBtn}>
+                <Pressable
+                  onPress={() => setMinimized(true)}
+                  style={({ pressed, hovered }) => [styles.iconBtn, (pressed || hovered) && styles.iconBtnActive]}
+                >
                   <Feather name="minimize-2" size={16} color="#94a3b8" />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={onCancel} style={styles.iconBtn}>
+                </Pressable>
+                <Pressable
+                  onPress={onCancel}
+                  style={({ pressed, hovered }) => [styles.iconBtn, (pressed || hovered) && styles.iconBtnDanger]}
+                >
                   <Feather name="x" size={16} color="#f43f5e" />
-                </TouchableOpacity>
+                </Pressable>
               </View>
             </View>
 
@@ -166,7 +190,10 @@ export default function DownloadHUD({
             {/* Action Toolbar */}
             <View style={styles.toolbar}>
               {isComplete ? (
-                <TouchableOpacity style={styles.primaryActionBtn} onPress={onOpenLibrary}>
+                <Pressable
+                  style={({ pressed, hovered }) => [styles.primaryActionBtn, (pressed || hovered) && styles.primaryActionBtnActive]}
+                  onPress={onOpenLibrary}
+                >
                   <LinearGradient
                     colors={['#00e5ff', '#0097a7']}
                     start={{ x: 0, y: 0 }}
@@ -176,17 +203,23 @@ export default function DownloadHUD({
                     <Feather name="hard-drive" size={18} color="#000" style={{ marginRight: 8 }} />
                     <Text style={styles.primaryBtnText}>MỞ THƯ VIỆN CHAPTER</Text>
                   </LinearGradient>
-                </TouchableOpacity>
+                </Pressable>
               ) : (
                 <>
-                  <TouchableOpacity style={styles.toolBtn} onPress={() => setMinimized(true)}>
+                  <Pressable
+                    style={({ pressed, hovered }) => [styles.toolBtn, (pressed || hovered) && styles.toolBtnActive]}
+                    onPress={() => setMinimized(true)}
+                  >
                     <Feather name="arrow-down-left" size={14} color="#00e5ff" style={{ marginRight: 6 }} />
                     <Text style={styles.toolBtnText}>Thu Nhỏ Bar</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={[styles.toolBtn, styles.cancelBtn]} onPress={onCancel}>
+                  </Pressable>
+                  <Pressable
+                    style={({ pressed, hovered }) => [styles.toolBtn, styles.cancelBtn, (pressed || hovered) && styles.cancelBtnActive]}
+                    onPress={onCancel}
+                  >
                     <Feather name="stop-circle" size={14} color="#f43f5e" style={{ marginRight: 6 }} />
                     <Text style={[styles.toolBtnText, { color: '#f43f5e' }]}>Hủy Tiến Trình</Text>
-                  </TouchableOpacity>
+                  </Pressable>
                 </>
               )}
             </View>
@@ -259,9 +292,24 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   iconBtn: {
-    padding: 6,
-    borderRadius: 8,
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 10,
     backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  iconBtnActive: {
+    backgroundColor: 'rgba(0, 229, 255, 0.16)',
+    borderColor: 'rgba(0, 229, 255, 0.45)',
+    transform: [{ scale: 1.06 }],
+  },
+  iconBtnDanger: {
+    backgroundColor: 'rgba(244, 63, 94, 0.15)',
+    borderColor: 'rgba(244, 63, 94, 0.4)',
+    transform: [{ scale: 1.06 }],
   },
   counterRow: {
     flexDirection: 'row',
@@ -336,9 +384,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(0, 229, 255, 0.25)',
   },
+  toolBtnActive: {
+    backgroundColor: 'rgba(0, 229, 255, 0.18)',
+    borderColor: 'rgba(0, 229, 255, 0.65)',
+    transform: [{ translateY: -1 }],
+  },
   cancelBtn: {
     backgroundColor: 'rgba(244, 63, 94, 0.08)',
     borderColor: 'rgba(244, 63, 94, 0.25)',
+  },
+  cancelBtnActive: {
+    backgroundColor: 'rgba(244, 63, 94, 0.18)',
+    borderColor: 'rgba(244, 63, 94, 0.6)',
+    transform: [{ translateY: -1 }],
   },
   toolBtnText: {
     color: '#00e5ff',
@@ -349,6 +407,10 @@ const styles = StyleSheet.create({
     width: '100%',
     borderRadius: 10,
     overflow: 'hidden',
+  },
+  primaryActionBtnActive: {
+    transform: [{ scale: 1.015 }],
+    opacity: 0.92,
   },
   gradientBtn: {
     flexDirection: 'row',
@@ -380,6 +442,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.4,
     shadowRadius: 12,
     elevation: 10,
+  },
+  minimizedPillActive: {
+    backgroundColor: 'rgba(16, 28, 42, 0.98)',
+    borderColor: '#7cffff',
+    transform: [{ scale: 1.03 }],
   },
   minDot: {
     width: 7,

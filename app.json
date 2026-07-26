@@ -4,7 +4,7 @@
     "slug": "NexusManga",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/android-icon-foreground.png",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#050505",
     "ios": {
@@ -20,12 +20,16 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#050505",
-        "foregroundImage": "./assets/icon.png"
+        "foregroundImage": "./assets/android-icon-foreground.png"
       },
       "package": "com.nexus.manga"
     },
     "web": {
-      "favicon": "./assets/icon.png"
-    }
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-sharing",
+      "expo-font"
+    ]
   }
 }
