@@ -1,0 +1,68 @@
+name: Build iOS IPA (Unsigned)
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Unsigned IPA
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Prebuild iOS
+        run: npx expo prebuild --platform ios --clean
+
+      - name: Build unsigned .app
+        run: |
+          cd ios
+          # The workspace name is generated based on the name/slug in app.json. 
+          # "NexusManga" from slug or "Nexus Manga" -> NexusManga.xcworkspace
+          WORKSPACE_NAME=$(ls *.xcworkspace -d | head -n 1)
+          SCHEME_NAME=$(basename $WORKSPACE_NAME .xcworkspace)
+          
+          echo "Building Workspace: $WORKSPACE_NAME with Scheme: $SCHEME_NAME"
+          
+          xcodebuild -workspace "$WORKSPACE_NAME" \
+            -scheme "$SCHEME_NAME" \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath derivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY=""
+
+      - name: Package .app into .ipa
+        run: |
+          cd ios
+          mkdir -p Payload
+          # Find the .app file in the derivedData
+          APP_PATH=$(find derivedData/Build/Products/Release-iphoneos -name "*.app" | head -n 1)
+          
+          echo "Packaging App: $APP_PATH"
+          cp -r "$APP_PATH" Payload/
+          
+          # Zip into .ipa
+          zip -r ../NexusManga-Unsigned.ipa Payload
+          
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: NexusManga-Unsigned.ipa
+          path: NexusManga-Unsigned.ipa
+          retention-days: 7

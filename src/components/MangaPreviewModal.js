@@ -132,6 +132,7 @@ export default function MangaPreviewModal({ visible, chapId, onClose, onExportCB
 
               <FlatList
                 data={images}
+                style={styles.readerList}
                 initialScrollIndex={selectedIndex}
                 keyExtractor={(item, index) => `${item}-${index}`}
                 showsVerticalScrollIndicator={false}
@@ -294,6 +295,10 @@ const styles = StyleSheet.create({
   readerContent: {
     paddingTop: 78,
     paddingBottom: 24,
+  },
+  readerList: {
+    flex: 1,
+    width: '100%',
   },
   readerPage: {
     width,

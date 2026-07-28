@@ -1,4 +1,4 @@
-import 'react-native-url-polyfill/auto';
+
 import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet, Text, View, TextInput, TouchableOpacity, FlatList,
