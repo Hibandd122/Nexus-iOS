@@ -630,6 +630,34 @@ export default function App() {
             </Text>
           </View>
 
+          {/* Trending Popular Manga Chips */}
+          <View style={styles.trendingSection}>
+            <Text style={styles.trendingTitle}>🔥 MANGA NỔI BẬT</Text>
+            <FlatList
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              data={[
+                { title: 'Chainsaw Man', url: 'https://mangadex.org/title/a77742b1-b6a4-4f14-b67d-44074f025642' },
+                { title: 'One Piece', url: 'https://mangadex.org/title/a1c7c2e7-4b7b-4694-9717-aa722a00e52b' },
+                { title: 'Jujutsu Kaisen', url: 'https://mangadex.org/title/c52b704e-e17f-49f6-80f0-8c207b5a88c2' },
+                { title: 'Frieren', url: 'https://mangadex.org/title/b0b7270d-417b-4e38-8c74-040455dff81d' },
+                { title: 'Solo Leveling', url: 'https://mangadex.org/title/32d76d19-8a05-4db0-9fc2-e0b0648fe9d0' },
+              ]}
+              keyExtractor={item => item.title}
+              contentContainerStyle={{ gap: 8, paddingVertical: 4 }}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.popularChip}
+                  onPress={() => setUrlInput(item.url)}
+                  activeOpacity={0.75}
+                >
+                  <Feather name="trending-up" size={11} color="#00f0ff" style={{ marginRight: 4 }} />
+                  <Text style={styles.popularChipText}>{item.title}</Text>
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+
           <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ width: '100%' }}>
             <View style={styles.glassPanel}>
               <LinearGradient
@@ -1717,5 +1745,30 @@ const styles = StyleSheet.create({
     color: '#10b981',
     fontSize: 9,
     fontWeight: '900',
+  },
+  trendingSection: {
+    marginBottom: 16,
+  },
+  trendingTitle: {
+    color: '#94a3b8',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.2,
+    marginBottom: 8,
+  },
+  popularChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(15, 23, 42, 0.82)',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 240, 255, 0.28)',
+  },
+  popularChipText: {
+    color: '#f1f5f9',
+    fontSize: 12,
+    fontWeight: '800',
   },
 });
