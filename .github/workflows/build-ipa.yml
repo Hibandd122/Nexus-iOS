@@ -33,8 +33,8 @@ jobs:
           cd ios
           # The workspace name is generated based on the name/slug in app.json. 
           # "NexusManga" from slug or "Nexus Manga" -> NexusManga.xcworkspace
-          WORKSPACE_NAME=$(ls *.xcworkspace -d | head -n 1)
-          SCHEME_NAME=$(basename $WORKSPACE_NAME .xcworkspace)
+          WORKSPACE_NAME=$(ls -d *.xcworkspace | head -n 1)
+          SCHEME_NAME=$(basename "$WORKSPACE_NAME" .xcworkspace)
           
           echo "Building Workspace: $WORKSPACE_NAME with Scheme: $SCHEME_NAME"
           
