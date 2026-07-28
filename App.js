@@ -14,7 +14,7 @@ import { Feather } from '@expo/vector-icons';
 import DownloadHUD from './src/components/DownloadHUD';
 import TikTokDownloader, { arrayBufferToBase64 } from './src/components/TikTokDownloader';
 import MangaPreviewModal from './src/components/MangaPreviewModal';
-import { dohFetch, DNS_PROVIDERS } from './src/utils/dns';
+import { dohFetch, DNS_PROVIDERS, measureDNSLatency } from './src/utils/dns';
 import { calculateStorageUsage, formatBytes, exportChapterAsCBZ, cleanupExpiredChapters } from './src/utils/storage';
 
 const DEFAULT_BACKEND_URL = "https://mahirun.hicanh69.workers.dev";
@@ -29,6 +29,7 @@ export default function App() {
   const [backendUrl, setBackendUrl] = useState(DEFAULT_BACKEND_URL);
   const [selectedDNS, setSelectedDNS] = useState(DNS_PROVIDERS[0]);
   const [settingsModalVisible, setSettingsModalVisible] = useState(false);
+  const [dnsLatency, setDnsLatency] = useState(null);
 
   // Manga Preview Modal State
   const [previewModalVisible, setPreviewModalVisible] = useState(false);
@@ -55,6 +56,7 @@ export default function App() {
   const [savedChapters, setSavedChapters] = useState([]);
   const [totalStorageBytes, setTotalStorageBytes] = useState(0);
   const [selectedMangaTitle, setSelectedMangaTitle] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // AppState for Background Stream Execution
   const appStateRef = useRef(AppState.currentState);
@@ -126,6 +128,15 @@ export default function App() {
   }, {});
 
   const mangaTitles = Object.keys(groupedManga).sort((a, b) => a.localeCompare(b));
+  const filteredMangaTitles = mangaTitles.filter(t => t.toLowerCase().includes(searchQuery.toLowerCase().trim()));
+
+  const openSettingsModal = async () => {
+    setSettingsModalVisible(true);
+    try {
+      const lat = await measureDNSLatency();
+      setDnsLatency(lat);
+    } catch (e) {}
+  };
 
   const extractChapInfo = (url) => {
     try {
@@ -558,7 +569,7 @@ export default function App() {
             </View>
           </View>
 
-          <TouchableOpacity onPress={() => setSettingsModalVisible(true)} style={styles.settingsBtn}>
+          <TouchableOpacity onPress={openSettingsModal} style={styles.settingsBtn}>
             <Feather name="sliders" size={18} color="#00e5ff" />
           </TouchableOpacity>
         </View>
@@ -711,6 +722,25 @@ export default function App() {
             )}
           </View>
 
+          {/* Library Search Bar */}
+          {savedChapters.length > 0 && !selectedMangaTitle && (
+            <View style={styles.searchWrapper}>
+              <Feather name="search" size={15} color="#94a3b8" style={{ marginRight: 8 }} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Tìm kiếm truyện trong thư viện..."
+                placeholderTextColor="#64748b"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+              {searchQuery ? (
+                <TouchableOpacity onPress={() => setSearchQuery('')}>
+                  <Feather name="x-circle" size={16} color="#94a3b8" />
+                </TouchableOpacity>
+              ) : null}
+            </View>
+          )}
+
           <View style={styles.libraryHeader}>
             {selectedMangaTitle ? (
               <TouchableOpacity style={styles.libraryBackBtn} onPress={() => setSelectedMangaTitle(null)}>
@@ -718,7 +748,7 @@ export default function App() {
                 <Text style={styles.libraryBackText}>Tất cả truyện</Text>
               </TouchableOpacity>
             ) : (
-              <Text style={styles.subtitle}>TRUYỆN ĐÃ DỊCH ({mangaTitles.length})</Text>
+              <Text style={styles.subtitle}>TRUYỆN ĐÃ DỊCH ({filteredMangaTitles.length})</Text>
             )}
           </View>
 
@@ -760,7 +790,7 @@ export default function App() {
             />
           ) : (
             <FlatList
-              data={mangaTitles}
+              data={filteredMangaTitles}
               keyExtractor={item => item}
               style={{ width: '100%' }}
               showsVerticalScrollIndicator={false}
@@ -787,7 +817,14 @@ export default function App() {
         <View style={styles.modalOverlay}>
           <View style={styles.settingsModalCard}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>CÀI ĐẶT NÂNG CAO VIP</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Text style={styles.modalTitle}>CÀI ĐẶT NÂNG CAO VIP</Text>
+                {dnsLatency !== null ? (
+                  <View style={styles.dnsBadge}>
+                    <Text style={styles.dnsBadgeText}>Ping: {dnsLatency}ms</Text>
+                  </View>
+                ) : null}
+              </View>
               <TouchableOpacity onPress={() => setSettingsModalVisible(false)}>
                 <Feather name="x" size={20} color="#f43f5e" />
               </TouchableOpacity>
@@ -1488,5 +1525,22 @@ const styles = StyleSheet.create({
     color: '#64748b',
     fontSize: 11,
     marginTop: 4,
+  },
+  searchWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(3, 7, 18, 0.8)',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 240, 255, 0.25)',
+    marginBottom: 14,
+  },
+  searchInput: {
+    flex: 1,
+    color: '#f8fafc',
+    fontSize: 13,
+    padding: 0,
   },
 });
