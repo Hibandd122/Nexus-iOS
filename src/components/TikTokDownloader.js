@@ -173,6 +173,26 @@ export default function TikTokDownloader({ backendUrl }) {
           ) : null}
         </View>
 
+        {!inputText ? (
+          <View style={styles.chipRow}>
+            <TouchableOpacity
+              style={styles.chipBtn}
+              onPress={() => setInputText('7.11 02/09 H4.60 H:/ 复制打开抖音，看看【NEXUS VIP】 https://v.douyin.com/iL2y3X/')}
+            >
+              <Feather name="copy" size={11} color="#ec4899" style={{ marginRight: 4 }} />
+              <Text style={styles.chipBtnText}>Thử Link Douyin Mẫu</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.chipBtn}
+              onPress={() => setInputText('Check out this video on TikTok https://vt.tiktok.com/ZSjX1234/')}
+            >
+              <Feather name="copy" size={11} color="#ec4899" style={{ marginRight: 4 }} />
+              <Text style={styles.chipBtnText}>Thử Link TikTok Mẫu</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
+
         <TouchableOpacity onPress={handleFetchInfo} disabled={loading || !inputText.trim()}>
           <LinearGradient
             colors={loading ? ['#334155', '#1e293b'] : ['#ec4899', '#8b5cf6']}
@@ -482,5 +502,27 @@ const styles = StyleSheet.create({
     color: '#94a3b8',
     fontSize: 12,
     lineHeight: 19,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+    flexWrap: 'wrap',
+  },
+  chipBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(236, 72, 153, 0.12)',
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(236, 72, 153, 0.3)',
+  },
+  chipBtnText: {
+    color: '#ec4899',
+    fontSize: 11,
+    fontWeight: '800',
   },
 });

@@ -653,6 +653,34 @@ export default function App() {
                 ) : null}
               </View>
 
+              {/* URL Status Indicator & Quick Chips */}
+              <View style={styles.urlStatusRow}>
+                {urlInput.includes('mangadex.org/title/') ? (
+                  <View style={[styles.urlBadge, styles.urlBadgeTitle]}>
+                    <Feather name="book" size={12} color="#00f0ff" style={{ marginRight: 4 }} />
+                    <Text style={styles.urlBadgeText}>Link Danh sách Manga (Sẽ mở Chapter Picker)</Text>
+                  </View>
+                ) : urlInput.includes('mangadex.org/chapter/') ? (
+                  <View style={[styles.urlBadge, styles.urlBadgeChapter]}>
+                    <Feather name="zap" size={12} color="#10b981" style={{ marginRight: 4 }} />
+                    <Text style={styles.urlBadgeChapterText}>Link Chapter Hợp Lệ (Dịch trực tiếp)</Text>
+                  </View>
+                ) : urlInput.length > 0 ? (
+                  <View style={[styles.urlBadge, styles.urlBadgeWarn]}>
+                    <Feather name="alert-triangle" size={12} color="#f59e0b" style={{ marginRight: 4 }} />
+                    <Text style={styles.urlBadgeWarnText}>Vui lòng dán liên kết MangaDex chính xác</Text>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.chipBtn}
+                    onPress={() => setUrlInput('https://mangadex.org/chapter/f432fb7a-9a3b-4c07-827b-58bb92cb4123')}
+                  >
+                    <Feather name="copy" size={11} color="#00f0ff" style={{ marginRight: 4 }} />
+                    <Text style={styles.chipBtnText}>Dán Link Mẫu Demo</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
               <TouchableOpacity
                 onPress={() => {
                    if (urlInput) loadChaptersForTitle();
@@ -712,6 +740,19 @@ export default function App() {
                 <Text style={styles.storageTitle}>DUNG LƯỢNG LƯU TRỮ</Text>
               </View>
               <Text style={styles.storageValue}>{formatBytes(totalStorageBytes)}</Text>
+            </View>
+
+            {/* Storage Progress Gauge */}
+            <View style={styles.storageGaugeBg}>
+              <LinearGradient
+                colors={['#10b981', '#00f0ff']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={[
+                  styles.storageGaugeFill,
+                  { width: `${Math.max(4, Math.min(100, Math.round((totalStorageBytes / (5 * 1024 * 1024 * 1024)) * 100)))}%` }
+                ]}
+              />
             </View>
 
             {savedChapters.length > 0 && (
@@ -1542,5 +1583,72 @@ const styles = StyleSheet.create({
     color: '#f8fafc',
     fontSize: 13,
     padding: 0,
+  },
+  urlStatusRow: {
+    marginBottom: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  urlBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  urlBadgeTitle: {
+    backgroundColor: 'rgba(0, 240, 255, 0.12)',
+    borderColor: 'rgba(0, 240, 255, 0.35)',
+  },
+  urlBadgeText: {
+    color: '#00f0ff',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  urlBadgeChapter: {
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    borderColor: 'rgba(16, 185, 129, 0.35)',
+  },
+  urlBadgeChapterText: {
+    color: '#10b981',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  urlBadgeWarn: {
+    backgroundColor: 'rgba(245, 158, 11, 0.12)',
+    borderColor: 'rgba(245, 158, 11, 0.35)',
+  },
+  urlBadgeWarnText: {
+    color: '#f59e0b',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  chipBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 240, 255, 0.08)',
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 240, 255, 0.25)',
+  },
+  chipBtnText: {
+    color: '#00f0ff',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  storageGaugeBg: {
+    height: 7,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 3.5,
+    overflow: 'hidden',
+    marginTop: 10,
+    marginBottom: 4,
+  },
+  storageGaugeFill: {
+    height: '100%',
+    borderRadius: 3.5,
   },
 });
