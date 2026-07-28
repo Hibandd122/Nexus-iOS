@@ -23,5 +23,8 @@
     "ios": "expo start --ios",
     "web": "expo start --web"
   },
+  "devDependencies": {
+    "babel-preset-expo": "~13.0.1"
+  },
   "private": true
 }
