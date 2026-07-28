@@ -25,7 +25,7 @@
     "web": "expo start --web"
   },
   "devDependencies": {
-    "babel-preset-expo": "~13.0.1"
+    "babel-preset-expo": "~56.0.18"
   },
   "private": true
 }
