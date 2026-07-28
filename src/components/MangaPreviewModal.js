@@ -151,6 +151,17 @@ export default function MangaPreviewModal({ visible, chapId, onClose, onExportCB
                   </View>
                 )}
               />
+
+              {/* Bottom Reading Mode HUD Bar */}
+              <LinearGradient
+                colors={['transparent', 'rgba(0,0,0,0.95)']}
+                style={styles.fullScreenBottomBar}
+              >
+                <View style={styles.readerBottomBadge}>
+                  <Feather name="book-open" size={13} color="#00e5ff" style={{ marginRight: 6 }} />
+                  <Text style={styles.readerBottomText}>CHẾ ĐỘ ĐỌC NÉT CAO VIP • {images.length} TRANG</Text>
+                </View>
+              </LinearGradient>
             </View>
           </Modal>
         )}
@@ -355,5 +366,32 @@ const styles = StyleSheet.create({
   },
   disabledNavBtn: {
     opacity: 0.25,
+  },
+  fullScreenBottomBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 70,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    paddingBottom: Platform.OS === 'ios' ? 24 : 14,
+  },
+  readerBottomBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(3, 7, 18, 0.86)',
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 240, 255, 0.35)',
+  },
+  readerBottomText: {
+    color: '#00f0ff',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.8,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
 });
