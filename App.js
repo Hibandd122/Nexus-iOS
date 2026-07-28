@@ -43,6 +43,7 @@ export default function App() {
   const [chapterPickerError, setChapterPickerError] = useState('');
   const [chapterTitle, setChapterTitle] = useState('');
   const [chapterOptions, setChapterOptions] = useState([]);
+  const [sortAscending, setSortAscending] = useState(false);
 
   // HUD & Translation Task State
   const [hudVisible, setHudVisible] = useState(false);
@@ -552,6 +553,18 @@ export default function App() {
                   {chapterTitle || 'Danh sách chapter'}
                 </Text>
               </View>
+
+              <TouchableOpacity
+                style={styles.sortBtn}
+                onPress={() => {
+                  setSortAscending(!sortAscending);
+                  showToast(sortAscending ? '🔽 Xắp xếp: Chapter mới nhất' : '🔼 Xắp xếp: Chapter cũ nhất', 'info');
+                }}
+              >
+                <Feather name={sortAscending ? 'arrow-up' : 'arrow-down'} size={12} color="#00f0ff" style={{ marginRight: 4 }} />
+                <Text style={styles.sortBtnText}>{sortAscending ? 'Cũ nhất' : 'Mới nhất'}</Text>
+              </TouchableOpacity>
+
               <TouchableOpacity onPress={() => setChapterPickerVisible(false)} style={styles.chapterPickerClose}>
                 <Feather name="x" size={18} color="#94a3b8" />
               </TouchableOpacity>
@@ -569,7 +582,7 @@ export default function App() {
               </View>
             ) : (
               <FlatList
-                data={chapterOptions}
+                data={sortAscending ? [...chapterOptions].reverse() : chapterOptions}
                 keyExtractor={(item) => item.id}
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={{ gap: 9, paddingBottom: 4 }}
@@ -1894,5 +1907,21 @@ const styles = StyleSheet.create({
     color: '#f8fafc',
     fontSize: 12,
     fontWeight: '800',
+  },
+  sortBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 240, 255, 0.12)',
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 9,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 240, 255, 0.3)',
+    marginRight: 6,
+  },
+  sortBtnText: {
+    color: '#00f0ff',
+    fontSize: 10,
+    fontWeight: '900',
   },
 });
