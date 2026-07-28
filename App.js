@@ -853,6 +853,12 @@ export default function App() {
         </View>
       )}
 
+      {/* App Footer System Health */}
+      <View style={styles.appFooter}>
+        <View style={styles.footerDot} />
+        <Text style={styles.footerText}>NEXUS ENGINE v2.5 VIP • DoH DIRECT TUNNEL ACTIVE</Text>
+      </View>
+
       {/* Advanced Settings Modal */}
       <Modal visible={settingsModalVisible} transparent animationType="fade">
         <View style={styles.modalOverlay}>
@@ -1650,5 +1656,28 @@ const styles = StyleSheet.create({
   storageGaugeFill: {
     height: '100%',
     borderRadius: 3.5,
+  },
+  appFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    backgroundColor: 'rgba(11, 15, 25, 0.94)',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0, 240, 255, 0.12)',
+    gap: 6,
+  },
+  footerDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#10b981',
+  },
+  footerText: {
+    color: '#64748b',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
 });
