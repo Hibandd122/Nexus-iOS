@@ -44,6 +44,7 @@ export default function App() {
   const [chapterTitle, setChapterTitle] = useState('');
   const [chapterOptions, setChapterOptions] = useState([]);
   const [sortAscending, setSortAscending] = useState(false);
+  const [chapterSearchQuery, setChapterSearchQuery] = useState('');
 
   // HUD & Translation Task State
   const [hudVisible, setHudVisible] = useState(false);
@@ -570,6 +571,25 @@ export default function App() {
               </TouchableOpacity>
             </View>
 
+            {/* Chapter Selector Real-Time Search Bar */}
+            {chapterOptions.length > 0 && (
+              <View style={styles.chapterSearchWrapper}>
+                <Feather name="search" size={14} color="#00f0ff" style={{ marginRight: 6 }} />
+                <TextInput
+                  style={styles.chapterSearchInput}
+                  placeholder="Lọc theo số Chapter hoặc tiêu đề..."
+                  placeholderTextColor="#475569"
+                  value={chapterSearchQuery}
+                  onChangeText={setChapterSearchQuery}
+                />
+                {chapterSearchQuery ? (
+                  <TouchableOpacity onPress={() => setChapterSearchQuery('')}>
+                    <Feather name="x-circle" size={14} color="#94a3b8" />
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+            )}
+
             {chapterPickerLoading ? (
               <View style={styles.chapterPickerState}>
                 <ActivityIndicator color="#00e5ff" />
@@ -582,7 +602,13 @@ export default function App() {
               </View>
             ) : (
               <FlatList
-                data={sortAscending ? [...chapterOptions].reverse() : chapterOptions}
+                data={(sortAscending ? [...chapterOptions].reverse() : chapterOptions).filter(item => {
+                  if (!chapterSearchQuery) return true;
+                  const q = chapterSearchQuery.toLowerCase();
+                  const chapStr = String(item.chapter || '').toLowerCase();
+                  const titleStr = String(item.title || '').toLowerCase();
+                  return chapStr.includes(q) || titleStr.includes(q);
+                })}
                 keyExtractor={(item) => item.id}
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={{ gap: 9, paddingBottom: 4 }}
@@ -1923,5 +1949,22 @@ const styles = StyleSheet.create({
     color: '#00f0ff',
     fontSize: 10,
     fontWeight: '900',
+  },
+  chapterSearchWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(3, 7, 18, 0.8)',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 240, 255, 0.25)',
+    marginBottom: 12,
+  },
+  chapterSearchInput: {
+    flex: 1,
+    color: '#f8fafc',
+    fontSize: 12,
+    padding: 0,
   },
 });
