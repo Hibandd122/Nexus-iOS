@@ -7,7 +7,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 const THUMB_SIZE = (width - 48) / 3; // 3 columns grid
 
 /**
