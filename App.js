@@ -510,7 +510,14 @@ export default function App() {
           <View style={styles.chapterPickerCard}>
             <View style={styles.chapterPickerHeader}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.chapterPickerKicker}>CHAPTER SELECTOR</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                  <Text style={styles.chapterPickerKicker}>CHAPTER SELECTOR</Text>
+                  {chapterOptions.length > 0 ? (
+                    <View style={styles.chapterCountPill}>
+                      <Text style={styles.chapterCountPillText}>{chapterOptions.length} Chap</Text>
+                    </View>
+                  ) : null}
+                </View>
                 <Text style={styles.chapterPickerTitle} numberOfLines={2}>
                   {chapterTitle || 'Danh sách chapter'}
                 </Text>
@@ -535,16 +542,21 @@ export default function App() {
                 data={chapterOptions}
                 keyExtractor={(item) => item.id}
                 showsVerticalScrollIndicator={false}
-                contentContainerStyle={{ gap: 8, paddingBottom: 4 }}
+                contentContainerStyle={{ gap: 9, paddingBottom: 4 }}
                 renderItem={({ item, index }) => (
                   <TouchableOpacity style={styles.chapterOption} onPress={() => selectChapter(item)} activeOpacity={0.75}>
                     <View style={styles.chapterNumber}>
                       <Text style={styles.chapterNumberText}>{item.chapter || index + 1}</Text>
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.chapterOptionTitle} numberOfLines={1}>
-                        {item.title || `Chapter ${item.chapter || index + 1}`}
-                      </Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={styles.chapterOptionTitle} numberOfLines={1}>
+                          {item.title || `Chapter ${item.chapter || index + 1}`}
+                        </Text>
+                        <View style={styles.langTag}>
+                          <Text style={styles.langTagText}>VI</Text>
+                        </View>
+                      </View>
                       <Text style={styles.chapterOptionMeta}>
                         {item.pages || 0} trang {item.volume ? `• Volume ${item.volume}` : ''}
                       </Text>
@@ -1679,5 +1691,31 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 0.8,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+  chapterCountPill: {
+    backgroundColor: 'rgba(0, 240, 255, 0.14)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 240, 255, 0.3)',
+  },
+  chapterCountPillText: {
+    color: '#00f0ff',
+    fontSize: 9,
+    fontWeight: '900',
+  },
+  langTag: {
+    backgroundColor: 'rgba(16, 185, 129, 0.14)',
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.35)',
+  },
+  langTagText: {
+    color: '#10b981',
+    fontSize: 9,
+    fontWeight: '900',
   },
 });
