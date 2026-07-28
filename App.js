@@ -59,6 +59,21 @@ export default function App() {
   const [selectedMangaTitle, setSelectedMangaTitle] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Toast Banner State
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState('info');
+  const toastAnim = useRef(new Animated.Value(-100)).current;
+
+  const showToast = (msg, type = 'info') => {
+    setToastMessage(msg);
+    setToastType(type);
+    Animated.sequence([
+      Animated.spring(toastAnim, { toValue: 0, damping: 14, stiffness: 180, useNativeDriver: true }),
+      Animated.delay(2200),
+      Animated.timing(toastAnim, { toValue: -100, duration: 250, useNativeDriver: true }),
+    ]).start();
+  };
+
   // AppState for Background Stream Execution
   const appStateRef = useRef(AppState.currentState);
   const activeSseRef = useRef(null);
@@ -455,6 +470,7 @@ export default function App() {
             await FileSystem.deleteAsync(dir, { idempotent: true });
             setSelectedMangaTitle(null);
             loadSavedChapters();
+            showToast('🗑️ Đã xóa toàn bộ bộ nhớ offline!', 'info');
           },
           style: 'destructive'
         }
@@ -473,6 +489,19 @@ export default function App() {
 
       <View pointerEvents="none" style={styles.backgroundGlowTop} />
       <View pointerEvents="none" style={styles.backgroundGlowBottom} />
+
+      {/* Cyber Toast Banner Overlay */}
+      <Animated.View style={[styles.toastContainer, { transform: [{ translateY: toastAnim }] }]} pointerEvents="none">
+        <View style={[styles.toastPill, toastType === 'success' ? styles.toastSuccess : (toastType === 'error' ? styles.toastError : styles.toastInfo)]}>
+          <Feather
+            name={toastType === 'success' ? 'check-circle' : (toastType === 'error' ? 'alert-triangle' : 'info')}
+            size={15}
+            color={toastType === 'success' ? '#10b981' : (toastType === 'error' ? '#f43f5e' : '#00f0ff')}
+            style={{ marginRight: 8 }}
+          />
+          <Text style={styles.toastText}>{toastMessage}</Text>
+        </View>
+      </Animated.View>
 
       {/* Extension-Style Floating HUD Overlay */}
       <DownloadHUD
@@ -571,7 +600,7 @@ export default function App() {
         </View>
       </Modal>
 
-      {/* Main VIP Header Bar */}
+      {/* Main Header Bar */}
       <View style={styles.header}>
         <View style={styles.brandRow}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -649,7 +678,10 @@ export default function App() {
               renderItem={({ item }) => (
                 <TouchableOpacity
                   style={styles.popularChip}
-                  onPress={() => setUrlInput(item.url)}
+                  onPress={() => {
+                    setUrlInput(item.url);
+                    showToast(`🔥 Đã nhập liên kết ${item.title}!`, 'info');
+                  }}
                   activeOpacity={0.75}
                 >
                   <Feather name="trending-up" size={11} color="#00f0ff" style={{ marginRight: 4 }} />
@@ -714,7 +746,10 @@ export default function App() {
                 ) : (
                   <TouchableOpacity
                     style={styles.chipBtn}
-                    onPress={() => setUrlInput('https://mangadex.org/chapter/f432fb7a-9a3b-4c07-827b-58bb92cb4123')}
+                    onPress={() => {
+                      setUrlInput('https://mangadex.org/chapter/f432fb7a-9a3b-4c07-827b-58bb92cb4123');
+                      showToast('⚡ Đã nhập liên kết MangaDex mẫu!', 'info');
+                    }}
                   >
                     <Feather name="copy" size={11} color="#00f0ff" style={{ marginRight: 4 }} />
                     <Text style={styles.chipBtnText}>Dán Link Mẫu Demo</Text>
@@ -1819,6 +1854,45 @@ const styles = StyleSheet.create({
   },
   themeChipText: {
     fontSize: 11,
+    fontWeight: '800',
+  },
+  toastContainer: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 54 : 34,
+    left: 0,
+    right: 0,
+    zIndex: 9999,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  toastPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 10,
+  },
+  toastInfo: {
+    backgroundColor: 'rgba(3, 7, 18, 0.94)',
+    borderColor: 'rgba(0, 240, 255, 0.4)',
+  },
+  toastSuccess: {
+    backgroundColor: 'rgba(3, 7, 18, 0.94)',
+    borderColor: 'rgba(16, 185, 129, 0.4)',
+  },
+  toastError: {
+    backgroundColor: 'rgba(3, 7, 18, 0.94)',
+    borderColor: 'rgba(244, 63, 94, 0.4)',
+  },
+  toastText: {
+    color: '#f8fafc',
+    fontSize: 12,
     fontWeight: '800',
   },
 });
