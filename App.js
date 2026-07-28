@@ -30,6 +30,7 @@ export default function App() {
   const [selectedDNS, setSelectedDNS] = useState(DNS_PROVIDERS[0]);
   const [settingsModalVisible, setSettingsModalVisible] = useState(false);
   const [dnsLatency, setDnsLatency] = useState(null);
+  const [accentTheme, setAccentTheme] = useState('#00f0ff');
 
   // Manga Preview Modal State
   const [previewModalVisible, setPreviewModalVisible] = useState(false);
@@ -943,6 +944,31 @@ export default function App() {
               </TouchableOpacity>
             ))}
 
+            <Text style={styles.fieldLabel}>Tông màu chủ đạo (Theme Accent)</Text>
+            <View style={styles.themePickerRow}>
+              {[
+                { name: 'Cyber Cyan', color: '#00f0ff' },
+                { name: 'Neon Pink', color: '#ec4899' },
+                { name: 'Emerald', color: '#10b981' },
+                { name: 'Violet', color: '#a855f7' },
+              ].map((theme) => (
+                <TouchableOpacity
+                  key={theme.color}
+                  style={[
+                    styles.themeChip,
+                    { borderColor: theme.color },
+                    accentTheme === theme.color && { backgroundColor: theme.color + '22', borderWidth: 2 }
+                  ]}
+                  onPress={() => setAccentTheme(theme.color)}
+                >
+                  <View style={[styles.themeDot, { backgroundColor: theme.color }]} />
+                  <Text style={[styles.themeChipText, { color: accentTheme === theme.color ? theme.color : '#94a3b8' }]}>
+                    {theme.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
             <TouchableOpacity style={styles.saveSettingsBtn} onPress={() => setSettingsModalVisible(false)}>
               <Text style={styles.saveSettingsText}>LƯU & ĐÓNG</Text>
             </TouchableOpacity>
@@ -1769,6 +1795,30 @@ const styles = StyleSheet.create({
   popularChipText: {
     color: '#f1f5f9',
     fontSize: 12,
+    fontWeight: '800',
+  },
+  themePickerRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 12,
+  },
+  themeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 10,
+    borderWidth: 1,
+    gap: 6,
+  },
+  themeDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  themeChipText: {
+    fontSize: 11,
     fontWeight: '800',
   },
 });
